@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build output
+build/
+dist/
+.vite/
+
+# Test coverage
+coverage/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS clutter
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE — VS Code (allow shared settings, ignore user state)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# IDE — IntelliJ / WebStorm
+.idea/
+*.iml
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Local cache
+.cache/
+.parcel-cache/
