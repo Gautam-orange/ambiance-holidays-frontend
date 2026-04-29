@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom';
-import { Facebook, Linkedin, Instagram, Phone, Mail, LogOut, User, ChevronDown, Twitter, ShoppingCart } from 'lucide-react';
-import apiClient from '../api/client';
+import { Facebook, Linkedin, Instagram, Phone, Mail, MapPin, LogOut, User, ChevronDown, Twitter, ShoppingCart, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 
@@ -9,8 +8,6 @@ export default function HomeLayout() {
   const { user, isAuthenticated, logout } = useAuth();
   const { count: cartCount } = useCart();
   const navigate = useNavigate();
-  const [newsletter, setNewsletter] = useState('');
-  const [newsletterDone, setNewsletterDone] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -31,25 +28,8 @@ export default function HomeLayout() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleNewsletter = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newsletter) return;
-    try {
-      await apiClient.post('/public/newsletter', { email: newsletter });
-      setNewsletterDone(true);
-    } catch {/* ignore */}
-  };
-
-  // Public nav links (unauthenticated)
-  const publicNavLinks = [
-    { label: 'Car Rental', path: '/car-rental' },
-    { label: 'Transfers', path: '/transfers' },
-    { label: 'Tours', path: '/tours' },
-    { label: 'Day Trips', path: '/day-trips' },
-  ];
-
-  // Agent nav links (authenticated)
-  const agentNavLinks = [
+  // Same nav for guests and agents — matches the design
+  const navLinks = [
     { label: 'Home', path: '/' },
     { label: 'Tours/Activities', path: '/tours' },
     { label: 'Local Experiences', path: '/day-trips' },
@@ -57,21 +37,8 @@ export default function HomeLayout() {
     { label: 'Transfers', path: '/transfers' },
   ];
 
-  const navLinks = isAuthenticated ? agentNavLinks : publicNavLinks;
-
   return (
     <div className="min-h-screen flex flex-col font-sans">
-      {/* Top Info Bar */}
-      <div className="bg-brand-900 text-white py-2 px-8 flex justify-between items-center text-xs">
-        <p className="font-medium tracking-wide">Ambiance Holidays</p>
-        <div className="flex items-center gap-4">
-          <Facebook className="w-3.5 h-3.5 cursor-pointer hover:text-brand-primary" />
-          <Twitter className="w-3.5 h-3.5 cursor-pointer hover:text-brand-primary" />
-          <Linkedin className="w-3.5 h-3.5 cursor-pointer hover:text-brand-primary" />
-          <Instagram className="w-3.5 h-3.5 cursor-pointer hover:text-brand-primary" />
-        </div>
-      </div>
-
       {/* Main Navigation */}
       <nav className="bg-white border-b border-slate-100 px-8 py-3 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
@@ -153,9 +120,13 @@ export default function HomeLayout() {
             ) : (
               <NavLink
                 to="/auth/login"
-                className="flex items-center gap-2 bg-brand-primary text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-brand-secondary transition-all shadow-md shadow-brand-primary/20"
+                className="flex items-center gap-2 border border-slate-200 rounded-full pl-2 pr-4 py-1.5 text-sm font-bold text-slate-700 hover:border-brand-primary hover:text-brand-primary transition-colors"
               >
-                B2B Login →
+                <span className="w-7 h-7 rounded-full border border-slate-300 flex items-center justify-center">
+                  <User className="w-3.5 h-3.5" />
+                </span>
+                Agent
+                <ChevronDown className="w-3.5 h-3.5" />
               </NavLink>
             )}
           </div>
@@ -168,38 +139,52 @@ export default function HomeLayout() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-brand-900 text-white pt-16 pb-8 border-t-4 border-brand-primary">
-        <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+      <footer className="bg-brand-900 text-white pt-16 pb-8">
+        <div className="max-w-7xl mx-auto px-8 grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
+          {/* Brand + tagline + socials */}
           <div className="space-y-6">
             <img src="/images/logo.png" alt="Ambiance Holidays" className="h-10 w-auto brightness-0 invert" />
-            <p className="text-slate-400 text-sm leading-relaxed">
-              Tailored escapes. Timeless memories.<br />
-              Experience the soul of the Indian Ocean with Ambiance Holidays.
+            <p className="text-slate-300 text-sm leading-relaxed">
+              Tailored escapes. Timeless memories.
             </p>
-            <div className="flex gap-4">
-              <Facebook className="w-5 h-5 text-slate-400 hover:text-brand-primary transition-colors cursor-pointer" />
-              <Twitter className="w-5 h-5 text-slate-400 hover:text-brand-primary transition-colors cursor-pointer" />
-              <Linkedin className="w-5 h-5 text-slate-400 hover:text-brand-primary transition-colors cursor-pointer" />
-              <Instagram className="w-5 h-5 text-slate-400 hover:text-brand-primary transition-colors cursor-pointer" />
+            <div className="flex gap-3">
+              {[
+                { Icon: Facebook,      label: 'Facebook' },
+                { Icon: Twitter,       label: 'Twitter' },
+                { Icon: Linkedin,      label: 'LinkedIn' },
+                { Icon: MessageCircle, label: 'WhatsApp' },
+                { Icon: Instagram,     label: 'Instagram' },
+              ].map(({ Icon, label }) => (
+                <a
+                  key={label}
+                  href="#"
+                  aria-label={label}
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-brand-primary text-white flex items-center justify-center transition-colors"
+                >
+                  <Icon className="w-4 h-4" />
+                </a>
+              ))}
             </div>
           </div>
 
-          <div className="space-y-6">
+          {/* Quick Links */}
+          <div className="space-y-5">
             <h3 className="font-display font-bold text-lg">Quick Links</h3>
-            <ul className="space-y-3 text-slate-400 text-sm">
-              <li><Link to="/" className="hover:text-brand-primary transition-colors">Home</Link></li>
-              <li><Link to="/about" className="hover:text-brand-primary transition-colors">About us</Link></li>
-              <li><Link to="/tours" className="hover:text-brand-primary transition-colors">Company Profile</Link></li>
-              <li><Link to="/tours" className="hover:text-brand-primary transition-colors">Blogs & News</Link></li>
-              <li><Link to="/terms" className="hover:text-brand-primary transition-colors">Term & Conditions</Link></li>
+            <ul className="space-y-3 text-slate-300 text-sm">
+              <li><Link to="/"      className="hover:text-brand-primary transition-colors flex items-center gap-2"><span className="text-brand-primary">›</span> Home</Link></li>
+              <li><Link to="/about" className="hover:text-brand-primary transition-colors flex items-center gap-2"><span className="text-brand-primary">›</span> About us</Link></li>
+              <li><Link to="/about" className="hover:text-brand-primary transition-colors flex items-center gap-2"><span className="text-brand-primary">›</span> Company Profile</Link></li>
+              <li><Link to="/tours" className="hover:text-brand-primary transition-colors flex items-center gap-2"><span className="text-brand-primary">›</span> Blogs &amp; News</Link></li>
+              <li><Link to="/terms" className="hover:text-brand-primary transition-colors flex items-center gap-2"><span className="text-brand-primary">›</span> Term &amp; Conditions</Link></li>
             </ul>
           </div>
 
-          <div className="space-y-6">
+          {/* Get In Touch */}
+          <div className="space-y-5">
             <h3 className="font-display font-bold text-lg">Get In Touch</h3>
-            <div className="space-y-4 text-slate-400 text-sm">
+            <div className="space-y-4 text-slate-300 text-sm">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-brand-primary shrink-0">
+                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-brand-primary shrink-0">
                   <Phone className="w-4 h-4" />
                 </div>
                 <div>
@@ -208,47 +193,23 @@ export default function HomeLayout() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-brand-primary shrink-0">
+                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-brand-primary shrink-0">
                   <Mail className="w-4 h-4" />
                 </div>
-                <div>
-                  <p>info@ambianceholidays.com</p>
-                  <p>reservation@ambianceholidays.com</p>
-                </div>
+                <p>info@ambianceholidays.com</p>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-brand-primary shrink-0">
-                  <Mail className="w-4 h-4" />
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-brand-primary shrink-0">
+                  <MapPin className="w-4 h-4" />
                 </div>
-                <p>Draper Avenue, Quatre Bornes Mauritius</p>
+                <p>Draper Avenue,<br />Quatre Bornes Mauritius</p>
               </div>
             </div>
           </div>
-
-          <div className="space-y-6">
-            <h3 className="font-display font-bold text-lg">Newsletter</h3>
-            <p className="text-slate-400 text-sm">Get the latest travel news and offers.</p>
-            {newsletterDone ? (
-              <p className="text-green-400 text-sm font-medium">✓ Subscribed! Thank you.</p>
-            ) : (
-              <form onSubmit={handleNewsletter} className="space-y-3">
-                <input
-                  type="email"
-                  value={newsletter}
-                  onChange={e => setNewsletter(e.target.value)}
-                  placeholder="Enter Email"
-                  className="bg-white/10 border-none rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-brand-primary w-full text-white placeholder:text-slate-400"
-                />
-                <button type="submit" className="w-full bg-brand-primary text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-brand-primary/20 flex items-center justify-center gap-2">
-                  Subscribe Now →
-                </button>
-              </form>
-            )}
-          </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-8 pt-8 border-t border-white/5 text-center text-xs text-slate-500 font-medium">
-          <p>All Copyrights Reserved. © 2025. Ambiance Holidays</p>
+        <div className="max-w-7xl mx-auto px-8 pt-8 border-t border-white/10 text-center text-xs text-slate-400 font-medium">
+          <p>All Copyrights Reserved. © {new Date().getFullYear()}. Ambiance Holidays</p>
         </div>
       </footer>
     </div>

@@ -15,6 +15,7 @@ import {
   UserCheck,
   Map,
   Mail,
+  Compass,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
@@ -100,14 +101,32 @@ export default function AdminLayout() {
               )}
             >
               <Car className="w-5 h-5 flex-shrink-0" />
-              <span>Car Management</span>
+              <span>Car Rental</span>
             </NavLink>
 
-            {/* Activities — collapsible with Day Trip + Tours children */}
-            <CollapsibleNav icon={Palmtree} label="Activities">
-              <SubLink to="/admin/day-trips" label="Day Trips" />
-              <SubLink to="/admin/activities" label="Tours" />
-            </CollapsibleNav>
+            {/* Match the agent-side terminology: Tours/Activities + Local Experiences are
+                two separate top-level items, not a collapsible group. */}
+            <NavLink
+              to="/admin/activities"
+              className={({ isActive }) => cn(
+                'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5',
+                isActive && 'bg-white/10 text-white font-medium'
+              )}
+            >
+              <Palmtree className="w-5 h-5 flex-shrink-0" />
+              <span>Tours/Activities</span>
+            </NavLink>
+
+            <NavLink
+              to="/admin/day-trips"
+              className={({ isActive }) => cn(
+                'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5',
+                isActive && 'bg-white/10 text-white font-medium'
+              )}
+            >
+              <Compass className="w-5 h-5 flex-shrink-0" />
+              <span>Local Experiences</span>
+            </NavLink>
 
             <NavLink
               to="/admin/transfer-pricing"
@@ -117,7 +136,7 @@ export default function AdminLayout() {
               )}
             >
               <Map className="w-5 h-5 flex-shrink-0" />
-              <span>Transfer Pricing</span>
+              <span>Transfers</span>
             </NavLink>
 
             <NavLink

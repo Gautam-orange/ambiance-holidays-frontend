@@ -1,12 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, Car, ArrowRight, Star, Shield, Clock, Headphones, Users, MapPin } from 'lucide-react';
+import { ArrowRight, Star, Shield, Clock, Headphones, Users, MapPin, Calendar, Car } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { catalogTours, type Tour } from '../api/tours';
 import PlacesAutocomplete from '../components/PlacesAutocomplete';
 
 const ADULT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+/** Small helper used by the hero search widget — icon + label above an input row. */
+function FieldShell({
+  icon: Icon,
+  label,
+  iconClass,
+  children,
+}: {
+  icon: React.ElementType;
+  label: string;
+  iconClass?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5 min-w-0">
+      <label className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+        <Icon className={cn('w-3.5 h-3.5', iconClass ?? 'text-emerald-500')} />
+        {label}
+      </label>
+      <div className="bg-slate-50 rounded-xl border border-slate-100 px-4 py-3 h-[58px] flex items-center">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'Car Rental' | 'Transfer'>('Car Rental');
@@ -58,229 +83,161 @@ export default function Home() {
   return (
     <div className="relative">
       {/* ── Hero ── */}
-      <section className="min-h-[680px] relative overflow-hidden flex items-center">
+      <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img
             src="/images/xavier-coiffic-ByAHlRiTQjo-unsplash.jpg"
             alt="Discover Mauritius"
-            className="w-full h-full object-cover scale-105"
+            className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-900/85 via-brand-900/60 to-brand-900/20" />
         </div>
 
-        <div className="max-w-7xl mx-auto px-8 w-full relative z-10 py-20">
-          <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }} className="max-w-2xl text-white mb-12">
-            <h1 className="text-6xl font-display font-bold leading-tight mb-4">
-              Discover Mauritius.
-            </h1>
-            <p className="text-lg text-white/70 max-w-lg leading-relaxed">
-              Tailored escapes. Timeless memories.
-            </p>
-          </motion.div>
-
+        <div className="max-w-7xl mx-auto px-8 relative z-10 pt-12 pb-24 min-h-[600px] flex items-end">
           {/* Search Widget */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }}
-            className="max-w-4xl"
+            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.6 }}
+            className="w-full"
           >
-            <div className="bg-white/10 backdrop-blur-md rounded-3xl overflow-hidden border border-white/20 shadow-2xl">
-              {/* Tabs */}
-              <div className="flex">
-                {(['Car Rental', 'Transfer'] as const).map(tab => {
-                  const Icon = tab === 'Car Rental' ? Car : MapPin;
-                  return (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={cn(
-                        'flex items-center gap-2.5 px-8 py-4 text-sm font-bold transition-all flex-1 justify-center relative',
-                        activeTab === tab
-                          ? 'bg-brand-primary text-white'
-                          : 'text-white/70 hover:text-white hover:bg-white/10'
-                      )}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {tab}
-                    </button>
-                  );
-                })}
-              </div>
+            {/* Pill tabs sit on top of the white card */}
+            <div className="inline-flex items-center bg-white rounded-t-2xl shadow-md border border-slate-100 border-b-0 overflow-hidden divide-x divide-slate-100">
+              {(['Car Rental', 'Transfer'] as const).map(tab => {
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                      'flex items-center gap-2 px-6 py-3 text-sm font-bold transition-colors',
+                      isActive ? 'text-brand-primary' : 'text-slate-400 hover:text-slate-600',
+                    )}
+                  >
+                    <Car className={cn('w-4 h-4', isActive ? 'text-brand-primary' : 'text-slate-300')} />
+                    {tab}
+                  </button>
+                );
+              })}
+            </div>
 
-              <div className="bg-white p-6 rounded-b-3xl">
-                {activeTab === 'Car Rental' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                    {/* Pickup Location */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-brand-primary" /> Pickup Location
-                      </label>
-                      <div className="flex items-center p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <PlacesAutocomplete
-                          value={crPickup}
-                          onChange={setCrPickup}
-                          placeholder="Where from"
-                          className="bg-transparent border-none outline-none text-xs font-medium w-full pl-6"
-                          showIcon
-                        />
-                      </div>
-                    </div>
-                    {/* Adults */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
-                        <Users className="w-3 h-3 text-brand-primary" /> Adult Count
-                      </label>
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <select
-                          value={crAdults}
-                          onChange={e => setCrAdults(Number(e.target.value))}
-                          className="bg-transparent border-none outline-none text-xs font-medium w-full text-slate-700"
-                        >
-                          {ADULT_OPTIONS.map(n => <option key={n} value={n}>{n} Adult{n > 1 ? 's' : ''}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                    {/* Date */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pickup Date</label>
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="bg-white rounded-2xl rounded-tl-none shadow-xl border border-slate-100 p-6">
+              {activeTab === 'Car Rental' ? (
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 items-end">
+                  {/* Pickup Location */}
+                  <FieldShell icon={MapPin} label="Pickup Location">
+                    <PlacesAutocomplete
+                      value={crPickup}
+                      onChange={setCrPickup}
+                      placeholder="Where to Next?"
+                      className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700 placeholder:text-slate-400"
+                    />
+                  </FieldShell>
+                  {/* Pickup Date & Time (combined) */}
+                  <FieldShell icon={Calendar} label="Date & Time">
+                    <input
+                      type="datetime-local"
+                      value={crDate && crTime ? `${crDate}T${crTime}` : crDate ? `${crDate}T00:00` : ''}
+                      min={`${today}T00:00`}
+                      onChange={e => {
+                        const [d, t] = e.target.value.split('T');
+                        setCrDate(d ?? '');
+                        setCrTime(t ?? '');
+                      }}
+                      className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700"
+                    />
+                  </FieldShell>
+                  {/* Drop location */}
+                  <FieldShell icon={MapPin} label="Drop location" iconClass="text-brand-primary">
+                    <PlacesAutocomplete
+                      value={crDropoff}
+                      onChange={setCrDropoff}
+                      placeholder="Enter drop location"
+                      className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700 placeholder:text-slate-400"
+                    />
+                  </FieldShell>
+                  {/* Drop Date & Time */}
+                  <FieldShell icon={Calendar} label="Drop Date & Time">
+                    <input
+                      type="datetime-local"
+                      min={`${today}T00:00`}
+                      className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700"
+                    />
+                  </FieldShell>
+                  {/* Search button */}
+                  <button
+                    onClick={handleSearch}
+                    className="bg-brand-primary text-white h-[58px] px-8 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-brand-secondary transition-all shadow-md"
+                  >
+                    Search <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Trip type */}
+                  <div className="flex items-center gap-6">
+                    {(['ONE_WAY', 'ROUND_TRIP'] as const).map(t => (
+                      <label key={t} className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-600">
                         <input
-                          type="date"
-                          value={crDate}
-                          min={today}
-                          onChange={e => setCrDate(e.target.value)}
-                          className="bg-transparent border-none outline-none text-xs font-medium w-full text-slate-700"
+                          type="radio"
+                          name="tripType"
+                          value={t}
+                          checked={trTripType === t}
+                          onChange={() => setTrTripType(t)}
+                          className="accent-brand-primary w-4 h-4"
                         />
-                      </div>
-                    </div>
-                    {/* Time */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pickup Time</label>
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <input
-                          type="time"
-                          value={crTime}
-                          onChange={e => setCrTime(e.target.value)}
-                          className="bg-transparent border-none outline-none text-xs font-medium w-full text-slate-700"
-                        />
-                      </div>
-                    </div>
-                    {/* Search */}
+                        {t === 'ONE_WAY' ? 'One Way' : 'Round Trip'}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 items-end">
+                    <FieldShell icon={MapPin} label="From Location">
+                      <PlacesAutocomplete
+                        value={trFrom}
+                        onChange={setTrFrom}
+                        placeholder="Where from"
+                        className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700 placeholder:text-slate-400"
+                      />
+                    </FieldShell>
+                    <FieldShell icon={MapPin} label="To Location" iconClass="text-brand-primary">
+                      <PlacesAutocomplete
+                        value={trTo}
+                        onChange={setTrTo}
+                        placeholder="Where to"
+                        className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700 placeholder:text-slate-400"
+                      />
+                    </FieldShell>
+                    <FieldShell icon={Users} label="Adult Count">
+                      <select
+                        value={trAdults}
+                        onChange={e => setTrAdults(Number(e.target.value))}
+                        className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700"
+                      >
+                        {ADULT_OPTIONS.map(n => <option key={n} value={n}>{n} Adult{n > 1 ? 's' : ''}</option>)}
+                      </select>
+                    </FieldShell>
+                    <FieldShell icon={Calendar} label="Date & Time">
+                      <input
+                        type="datetime-local"
+                        value={trDate && trTime ? `${trDate}T${trTime}` : trDate ? `${trDate}T00:00` : ''}
+                        min={`${today}T00:00`}
+                        onChange={e => {
+                          const [d, t] = e.target.value.split('T');
+                          setTrDate(d ?? '');
+                          setTrTime(t ?? '');
+                        }}
+                        className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700"
+                      />
+                    </FieldShell>
                     <button
                       onClick={handleSearch}
-                      className="bg-brand-primary text-white h-[46px] rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-secondary transition-all shadow-lg shadow-brand-primary/20"
+                      className="bg-brand-primary text-white h-[58px] px-8 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-brand-secondary transition-all shadow-md"
                     >
-                      <Search className="w-4 h-4" /> Search
+                      Search <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Trip type */}
-                    <div className="flex items-center gap-6">
-                      {(['ONE_WAY', 'ROUND_TRIP'] as const).map(t => (
-                        <label key={t} className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-600">
-                          <input
-                            type="radio"
-                            name="tripType"
-                            value={t}
-                            checked={trTripType === t}
-                            onChange={() => setTrTripType(t)}
-                            className="accent-brand-primary w-4 h-4"
-                          />
-                          {t === 'ONE_WAY' ? 'One Way' : 'Round Trip'}
-                        </label>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                      {/* From */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-brand-primary" /> From Location
-                        </label>
-                        <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
-                          <PlacesAutocomplete
-                            value={trFrom}
-                            onChange={setTrFrom}
-                            placeholder="Where from"
-                            className="bg-transparent border-none outline-none text-xs font-medium w-full pl-6"
-                            showIcon
-                          />
-                        </div>
-                      </div>
-                      {/* To */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-brand-primary" /> To Location
-                        </label>
-                        <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
-                          <PlacesAutocomplete
-                            value={trTo}
-                            onChange={setTrTo}
-                            placeholder="Where to"
-                            className="bg-transparent border-none outline-none text-xs font-medium w-full pl-6"
-                            showIcon
-                          />
-                        </div>
-                      </div>
-                      {/* Adults */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
-                          <Users className="w-3 h-3 text-brand-primary" /> Adult Count
-                        </label>
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                          <select
-                            value={trAdults}
-                            onChange={e => setTrAdults(Number(e.target.value))}
-                            className="bg-transparent border-none outline-none text-xs font-medium w-full text-slate-700"
-                          >
-                            {ADULT_OPTIONS.map(n => <option key={n} value={n}>{n} Adult{n > 1 ? 's' : ''}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      {/* Date */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Date & Time</label>
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                          <input
-                            type="date"
-                            value={trDate}
-                            min={today}
-                            onChange={e => setTrDate(e.target.value)}
-                            className="bg-transparent border-none outline-none text-xs font-medium w-full text-slate-700"
-                          />
-                        </div>
-                      </div>
-                      {/* Search */}
-                      <button
-                        onClick={handleSearch}
-                        className="bg-brand-primary text-white h-[46px] rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-brand-secondary transition-all shadow-lg shadow-brand-primary/20"
-                      >
-                        <Search className="w-4 h-4" /> Search
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
-
-        {/* Trust badges */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-          className="absolute bottom-8 right-8 z-10 hidden xl:flex gap-3">
-          {[
-            { icon: Star, label: '4.9 Rating', sub: '2,400+ reviews' },
-            { icon: Shield, label: 'Fully Licensed', sub: 'Mauritius Tourism' },
-          ].map(b => (
-            <div key={b.label} className="bg-white/10 backdrop-blur-md border border-white/20 px-5 py-3 rounded-2xl text-white flex items-center gap-3">
-              <b.icon className="w-5 h-5 text-brand-primary" />
-              <div>
-                <p className="font-bold text-sm leading-tight">{b.label}</p>
-                <p className="text-white/60 text-xs">{b.sub}</p>
-              </div>
-            </div>
-          ))}
-        </motion.div>
       </section>
 
       {/* ── Why Choose Us ── */}
