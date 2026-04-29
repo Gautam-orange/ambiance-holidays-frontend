@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Upload, ChevronLeft } from 'lucide-react';
+import { Plus, Trash2, ChevronLeft, ImagePlus, X } from 'lucide-react';
 import { adminCreateTour } from '../../api/tours';
 import { cn } from '../../lib/utils';
 
@@ -35,8 +35,46 @@ export default function AddTour() {
 
   const [itinerary, setItinerary] = useState<ItineraryRow[]>([{ stopTime: '', title: '', description: '' }]);
   const [pickups, setPickups] = useState<PickupRow[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  /**
+   * Upload a chosen image file to the backend and store the returned short URL
+   * in the form. Avoids users pasting 30 KB+ base64 strings into a VARCHAR(500)
+   * column (the prior "An unexpected error occurred" failure mode).
+   */
+  const handleImageUpload = async (file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (JPG, PNG, or WebP).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image is too large — please upload a file under 5 MB.');
+      return;
+    }
+    setError('');
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/v1/uploads', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({} as any));
+      if (!res.ok) throw new Error(data?.error?.message ?? `Upload failed (${res.status})`);
+      const url = data?.data?.url;
+      if (!url) throw new Error('Upload succeeded but no URL was returned.');
+      set('coverImageUrl', url);
+    } catch (e: any) {
+      setError(e?.message ?? 'Could not upload image.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,10 +167,47 @@ export default function AddTour() {
               <input type="number" step="0.5" value={form.durationHours} onChange={e => set('durationHours', e.target.value)}
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cover Image URL</label>
-              <input type="url" value={form.coverImageUrl} onChange={e => set('coverImageUrl', e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
+            <div className="md:col-span-2 space-y-1">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cover Image</label>
+              {form.coverImageUrl ? (
+                <div className="flex items-start gap-3">
+                  <img
+                    src={form.coverImageUrl}
+                    alt="Cover preview"
+                    className="w-32 h-24 object-cover rounded-xl border border-slate-200 bg-slate-100"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <p className="text-xs text-slate-500 truncate" title={form.coverImageUrl}>{form.coverImageUrl}</p>
+                    <button
+                      type="button"
+                      onClick={() => set('coverImageUrl', '')}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-700"
+                    >
+                      <X className="w-3 h-3" /> Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label className={cn(
+                  'flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm cursor-pointer transition-colors',
+                  uploading ? 'opacity-60 cursor-wait' : 'hover:border-brand-primary hover:bg-brand-primary/5 text-slate-500'
+                )}>
+                  <ImagePlus className="w-4 h-4" />
+                  <span>{uploading ? 'Uploading…' : 'Choose an image (JPG, PNG, WebP — max 5 MB)'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploading}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file);
+                      e.target.value = '';
+                    }}
+                    className="hidden"
+                  />
+                </label>
+              )}
             </div>
           </div>
         </section>
