@@ -13,9 +13,6 @@ import AddCar from './pages/admin/AddCar';
 import CarAvailability from './pages/admin/CarAvailability';
 import CarDetail from './pages/admin/CarDetail';
 import ToursManagement from './pages/admin/ToursManagement';
-import DriverActivity from './pages/admin/DriverActivity';
-import DriverList from './pages/admin/DriverList';
-import AssigneeDriver from './pages/admin/AssigneeDriver';
 import AgentManagement from './pages/admin/AgentManagement';
 import AgentDetail from './pages/admin/AgentDetail';
 import AddTour from './pages/admin/AddTour';
@@ -100,9 +97,6 @@ export default function App() {
           <Route path="agents" element={<AgentManagement />} />
           <Route path="agents/:id" element={<AgentDetail />} />
           <Route path="transfer-pricing" element={<TransferPricingManagement />} />
-          <Route path="drivers" element={<DriverList />} />
-          <Route path="drivers/:id" element={<DriverActivity />} />
-          <Route path="assignee/:id" element={<AssigneeDriver />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="newsletter" element={<AdminNewsletterPage />} />
         </Route>

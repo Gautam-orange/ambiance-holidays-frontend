@@ -87,11 +87,17 @@ export default function AdminLayout() {
               <span>Dashboard</span>
             </NavLink>
 
-            {/* Bookings Management — collapsible with Drivers child */}
-            <CollapsibleNav icon={ClipboardList} label="Bookings Management">
-              <SubLink to="/admin/bookings" label="All Bookings" />
-              <SubLink to="/admin/drivers" label="Drivers" />
-            </CollapsibleNav>
+            {/* Bookings — flat top-level link now that Drivers module is removed */}
+            <NavLink
+              to="/admin/bookings"
+              className={({ isActive }) => cn(
+                'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5',
+                isActive && 'bg-white/10 text-white font-medium'
+              )}
+            >
+              <ClipboardList className="w-5 h-5 flex-shrink-0" />
+              <span>Bookings</span>
+            </NavLink>
 
             <NavLink
               to="/admin/cars"
