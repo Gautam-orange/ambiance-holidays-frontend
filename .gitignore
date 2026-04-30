@@ -10,9 +10,10 @@ dist/
 coverage/
 
 # Environment / secrets
-.env
-.env.*
-!.env.example
+# Local overrides only — committed files (.env, .env.development, .env.production)
+# DO travel with the repo so each environment's defaults are in source control.
+.env.local
+.env.*.local
 
 # Logs
 *.log

@@ -57,12 +57,20 @@ const authApi = {
     await apiClient.post('/auth/logout', { refreshToken });
   },
 
+  /** Step 1 — request a 6-digit OTP to be emailed to the user. */
   forgotPassword: async (email: string): Promise<void> => {
     await apiClient.post('/auth/forgot-password', { email });
   },
 
-  resetPassword: async (token: string, newPassword: string): Promise<void> => {
-    await apiClient.post('/auth/reset-password', { token, newPassword });
+  /** Step 2 — verify the OTP and obtain a short-lived verificationToken JWT. */
+  verifyOtp: async (email: string, otp: string): Promise<{ verificationToken: string; expiresInSeconds: number }> => {
+    const res = await apiClient.post('/auth/verify-otp', { email, otp });
+    return res.data.data;
+  },
+
+  /** Step 3 — complete the reset using the verificationToken from step 2. */
+  resetPassword: async (email: string, verificationToken: string, newPassword: string): Promise<void> => {
+    await apiClient.post('/auth/reset-password', { email, verificationToken, newPassword });
   },
 
   me: async (): Promise<UserInfo> => {

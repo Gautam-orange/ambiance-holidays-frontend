@@ -56,7 +56,6 @@ import NewsletterConfirm from './pages/NewsletterConfirm';
 import Login from './pages/auth/Login';
 import AgentRegister from './pages/auth/AgentRegister';
 import ForgotPassword from './pages/auth/ForgotPassword';
-import ResetPassword from './pages/auth/ResetPassword';
 import EmailVerificationPage from './pages/auth/EmailVerificationPage';
 
 const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN_OPS', 'FLEET_MANAGER'];
@@ -69,7 +68,6 @@ export default function App() {
         <Route path="/auth/login" element={<Login />} />
         <Route path="/auth/agent-register" element={<AgentRegister />} />
         <Route path="/auth/forgot-password" element={<ForgotPassword />} />
-        <Route path="/auth/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email/:token" element={<EmailVerificationPage />} />
 
         {/* Admin Routes — protected, admin roles only */}
