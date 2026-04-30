@@ -119,13 +119,16 @@ export const checkout = (data: {
   specialRequests?: string;
 }) => api.post('/bookings', data).then(r => r.data.data as Booking);
 
-// Peach Payments — initiate a checkout: creates a PENDING booking and a Peach
-// checkout, returns the redirect URL for the Peach hosted page.
+// Peach Payments V1 — initiate a checkout: creates a PENDING booking and
+// returns the signed form params the frontend should auto-submit to Peach.
 export interface PeachInitiateResponse {
   bookingId: string;
   bookingReference: string;
   checkoutId: string;
-  redirectUrl: string;
+  /** URL to POST the HTML form to — typically https://testsecure.peachpayments.com/checkout */
+  submitUrl: string;
+  /** Every key/value pair (incl. signature) to include as <input> fields in the form. */
+  formFields: Record<string, string>;
 }
 export const initiatePeachCheckout = (
   data: {

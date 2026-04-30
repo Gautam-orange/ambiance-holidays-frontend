@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { User, Mail, Building, Globe, MapPin, Lock, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { User, Mail, Building, Globe, MapPin, Lock, ChevronRight, CheckCircle, AlertCircle, Check, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import authApi, { SignupRequest } from '../../api/auth';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { COUNTRIES } from '../../lib/countries';
 
 type BusinessType = 'TRAVEL_AGENCY' | 'FREELANCER' | 'CORPORATE';
 
@@ -12,18 +13,44 @@ const BUSINESS_TYPES: { label: string; value: BusinessType }[] = [
   { label: 'Corporate', value: 'CORPORATE' },
 ];
 
+/**
+ * Backend regex (SignupRequest.java):
+ *   ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$
+ * Mirror it client-side so we can flag invalid passwords BEFORE the request
+ * lands and produces a generic 400. Note the special-character set is the
+ * restrictive backend whitelist — anything outside it (#, ^, /, …) breaks.
+ */
+const PASSWORD_RULES = [
+  { id: 'len', label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+  { id: 'upper', label: 'One uppercase letter (A–Z)', test: (p: string) => /[A-Z]/.test(p) },
+  { id: 'lower', label: 'One lowercase letter (a–z)', test: (p: string) => /[a-z]/.test(p) },
+  { id: 'digit', label: 'One digit (0–9)', test: (p: string) => /\d/.test(p) },
+  { id: 'symbol', label: 'One symbol from @ $ ! % * ? &', test: (p: string) => /[@$!%*?&]/.test(p) },
+  { id: 'allowed', label: 'No characters outside A-Z a-z 0-9 @ $ ! % * ? &', test: (p: string) => p === '' || /^[A-Za-z\d@$!%*?&]+$/.test(p) },
+];
+
 export default function AgentRegister() {
-  const [form, setForm] = useState<Partial<SignupRequest>>({ businessType: 'TRAVEL_AGENCY' });
+  const [form, setForm] = useState<Partial<SignupRequest>>({ businessType: 'TRAVEL_AGENCY', country: 'Mauritius' });
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [showPwHint, setShowPwHint] = useState(false);
 
-  const set = (field: keyof SignupRequest) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (field: keyof SignupRequest) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(prev => ({ ...prev, [field]: e.target.value }));
+
+  const password = form.password ?? '';
+  const passwordChecks = useMemo(() => PASSWORD_RULES.map(r => ({ ...r, ok: r.test(password) })), [password]);
+  const passwordValid = passwordChecks.every(c => c.ok);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!passwordValid) {
+      setError('Password does not meet all requirements. See the checklist below the password field.');
+      setShowPwHint(true);
+      return;
+    }
     setIsLoading(true);
     try {
       await authApi.signup(form as SignupRequest);
@@ -139,9 +166,33 @@ export default function AgentRegister() {
                 <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Password *</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input type="password" placeholder="Min 8 chars, upper, lower, digit, symbol" required onChange={set('password')}
-                    className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium" />
+                  <input
+                    type="password"
+                    placeholder="e.g. Travel@2026"
+                    required
+                    value={password}
+                    onChange={set('password')}
+                    onFocus={() => setShowPwHint(true)}
+                    onBlur={() => password === '' && setShowPwHint(false)}
+                    className={`w-full pl-12 pr-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 text-sm font-medium ${
+                      password && !passwordValid
+                        ? 'border-red-300 focus:ring-red-200'
+                        : 'border-slate-200 focus:ring-brand-primary/20'
+                    }`}
+                  />
                 </div>
+                {(showPwHint || (password && !passwordValid)) && (
+                  <ul className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-1.5 mt-2">
+                    {passwordChecks.map(c => (
+                      <li key={c.id} className={`flex items-center gap-2 text-[11px] font-medium ${c.ok ? 'text-emerald-600' : 'text-slate-500'}`}>
+                        {c.ok
+                          ? <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                          : <X className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
+                        <span>{c.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -156,9 +207,22 @@ export default function AgentRegister() {
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Country *</label>
                 <div className="relative">
-                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input type="text" placeholder="Mauritius" required onChange={set('country')}
-                    className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium" />
+                  <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <select
+                    required
+                    value={form.country ?? ''}
+                    onChange={set('country')}
+                    className="w-full pl-12 pr-9 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium appearance-none cursor-pointer"
+                  >
+                    <option value="" disabled>Select country</option>
+                    {COUNTRIES.map((c, i) => (
+                      <React.Fragment key={c.code}>
+                        {i === 10 && <option disabled>──────────</option>}
+                        <option value={c.name}>{c.name}</option>
+                      </React.Fragment>
+                    ))}
+                  </select>
+                  <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
                 </div>
               </div>
 

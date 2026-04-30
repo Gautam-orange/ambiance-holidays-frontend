@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, ArrowLeft, User, Phone, Mail, MapPin, Globe, FileText } from 'lucide-react';
-import { getCart, checkout, formatMoney, type CartSummary } from '../api/bookings';
+import { getCart, initiatePeachCheckout, formatMoney, type CartSummary } from '../api/bookings';
 import { useAuth } from '../contexts/AuthContext';
 
 const SUPPORTED_CURRENCIES = ['USD', 'MUR', 'INR'] as const;
@@ -58,23 +58,36 @@ export default function CheckoutPage() {
     setError('');
     setSubmitting(true);
     try {
-      // Peach Payments integration is in place but currently dormant pending
-      // valid sandbox credentials. Until then, place the booking via the
-      // legacy endpoint so the flow works end-to-end.
-      const booking = await checkout({
+      // 1. Backend creates a PENDING booking and returns the signed Peach form params.
+      const init = await initiatePeachCheckout({
         customerFirstName: form.customerFirstName,
         customerLastName: form.customerLastName,
         customerEmail: form.customerEmail,
         customerPhone: form.customerPhone || form.whatsappNumber,
         serviceDate: form.serviceDate,
         specialRequests: form.specialRequests || undefined,
-      });
-      navigate(`/payment/success?ref=${encodeURIComponent(booking.reference)}`);
+      }, currency);
+
+      // 2. Build a hidden HTML form, submit it — the browser POSTs to Peach's
+      // hosted checkout. After payment Peach POSTs back to our /return endpoint.
+      const peachForm = document.createElement('form');
+      peachForm.method = 'POST';
+      peachForm.action = init.submitUrl;
+      peachForm.style.display = 'none';
+      for (const [name, value] of Object.entries(init.formFields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        peachForm.appendChild(input);
+      }
+      document.body.appendChild(peachForm);
+      peachForm.submit();
     } catch (err: any) {
       setError(
         err?.response?.data?.error?.message ??
         err?.response?.data?.message ??
-        'Could not place booking. Please try again.',
+        'Could not start payment. Please try again.',
       );
       setSubmitting(false);
     }

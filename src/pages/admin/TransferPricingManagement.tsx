@@ -10,15 +10,22 @@ interface Tier {
   priceCents: number;
   active: boolean;
   sortOrder: number;
+  includes: string[];
+  excludes: string[];
 }
 
-const emptyForm = (): Omit<Tier, 'id'> => ({
+const emptyForm = (): Omit<Tier, 'id'> & { includesText: string; excludesText: string } => ({
   label: '',
   minKm: 0,
   maxKm: null,
   priceCents: 0,
   active: true,
   sortOrder: 0,
+  includes: [],
+  excludes: [],
+  // Working text for the textareas — split into the array on save.
+  includesText: '',
+  excludesText: '',
 });
 
 const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -44,7 +51,18 @@ export default function TransferPricingManagement() {
 
   const startEdit = (t: Tier) => {
     setEditId(t.id);
-    setForm({ label: t.label, minKm: t.minKm, maxKm: t.maxKm, priceCents: t.priceCents, active: t.active, sortOrder: t.sortOrder });
+    setForm({
+      label: t.label,
+      minKm: t.minKm,
+      maxKm: t.maxKm,
+      priceCents: t.priceCents,
+      active: t.active,
+      sortOrder: t.sortOrder,
+      includes: t.includes ?? [],
+      excludes: t.excludes ?? [],
+      includesText: (t.includes ?? []).join('\n'),
+      excludesText: (t.excludes ?? []).join('\n'),
+    });
     setShowAdd(false);
   };
 
@@ -54,7 +72,12 @@ export default function TransferPricingManagement() {
     setSaving(true);
     setError('');
     try {
-      const payload = { ...form };
+      const { includesText, excludesText, ...rest } = form;
+      const payload = {
+        ...rest,
+        includes: includesText.split('\n').map(s => s.trim()).filter(Boolean),
+        excludes: excludesText.split('\n').map(s => s.trim()).filter(Boolean),
+      };
       if (id) {
         await apiClient.put(`/admin/transfer-pricing/${id}`, payload);
       } else {
@@ -84,37 +107,63 @@ export default function TransferPricingManagement() {
   const inputCls = 'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-brand-primary/20';
 
   const TierForm = ({ id }: { id?: string }) => (
-    <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-end p-4 bg-slate-50 rounded-xl border border-brand-primary/20">
-      <div className="md:col-span-2">
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Label</label>
-        <input className={inputCls} placeholder="e.g. Short Distance (0–20 km)" value={form.label}
-          onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
+    <div className="p-4 bg-slate-50 rounded-xl border border-brand-primary/20 space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
+        <div className="md:col-span-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Label</label>
+          <input className={inputCls} placeholder="e.g. Short Distance (0–20 km)" value={form.label}
+            onChange={e => setForm(f => ({ ...f, label: e.target.value }))} />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Min KM</label>
+          <input type="number" min="0" className={inputCls} value={form.minKm}
+            onChange={e => setForm(f => ({ ...f, minKm: Number(e.target.value) }))} />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Max KM <span className="text-slate-300">(blank=∞)</span></label>
+          <input type="number" min="0" className={inputCls} placeholder="∞"
+            value={form.maxKm ?? ''}
+            onChange={e => setForm(f => ({ ...f, maxKm: e.target.value === '' ? null : Number(e.target.value) }))} />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Price (USD)</label>
+          <input type="number" min="0" step="0.01" className={inputCls}
+            value={form.priceCents / 100}
+            onChange={e => setForm(f => ({ ...f, priceCents: Math.round(Number(e.target.value) * 100) }))} />
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => handleSave(id)} disabled={saving}
+            className="flex-1 bg-brand-primary text-white py-2 rounded-lg text-sm font-bold hover:bg-brand-secondary disabled:opacity-60 flex items-center justify-center gap-1">
+            <Check className="w-3.5 h-3.5" /> {saving ? '...' : 'Save'}
+          </button>
+          <button onClick={cancelEdit} className="px-3 py-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
-      <div>
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Min KM</label>
-        <input type="number" min="0" className={inputCls} value={form.minKm}
-          onChange={e => setForm(f => ({ ...f, minKm: Number(e.target.value) }))} />
-      </div>
-      <div>
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Max KM <span className="text-slate-300">(blank=∞)</span></label>
-        <input type="number" min="0" className={inputCls} placeholder="∞"
-          value={form.maxKm ?? ''}
-          onChange={e => setForm(f => ({ ...f, maxKm: e.target.value === '' ? null : Number(e.target.value) }))} />
-      </div>
-      <div>
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Price (USD)</label>
-        <input type="number" min="0" step="0.01" className={inputCls}
-          value={form.priceCents / 100}
-          onChange={e => setForm(f => ({ ...f, priceCents: Math.round(Number(e.target.value) * 100) }))} />
-      </div>
-      <div className="flex gap-2">
-        <button onClick={() => handleSave(id)} disabled={saving}
-          className="flex-1 bg-brand-primary text-white py-2 rounded-lg text-sm font-bold hover:bg-brand-secondary disabled:opacity-60 flex items-center justify-center gap-1">
-          <Check className="w-3.5 h-3.5" /> {saving ? '...' : 'Save'}
-        </button>
-        <button onClick={cancelEdit} className="px-3 py-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100">
-          <X className="w-3.5 h-3.5" />
-        </button>
+
+      {/* What's Included / Exclusions — surfaced on the customer-facing transfer detail page. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">What's Included <span className="text-slate-300 normal-case font-medium">(one per line)</span></label>
+          <textarea
+            rows={4}
+            className={`${inputCls} resize-y`}
+            placeholder={'Meet & greet at airport\nProfessional driver\nFuel & parking'}
+            value={form.includesText}
+            onChange={e => setForm(f => ({ ...f, includesText: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Exclusions <span className="text-slate-300 normal-case font-medium">(one per line)</span></label>
+          <textarea
+            rows={4}
+            className={`${inputCls} resize-y`}
+            placeholder={'Gratuities\nTravel insurance\nMeals'}
+            value={form.excludesText}
+            onChange={e => setForm(f => ({ ...f, excludesText: e.target.value }))}
+          />
+        </div>
       </div>
     </div>
   );

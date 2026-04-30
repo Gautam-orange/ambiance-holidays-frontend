@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { catalogTours, type Tour } from '../api/tours';
 import PlacesAutocomplete from '../components/PlacesAutocomplete';
+import CarRentalSearchWidget from '../components/CarRentalSearchWidget';
 
 const ADULT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -38,14 +39,7 @@ export default function Home() {
   const [featuredTours, setFeaturedTours] = useState<Tour[]>([]);
   const navigate = useNavigate();
 
-  // Car Rental fields
-  const [crPickup, setCrPickup] = useState('');
-  const [crDropoff, setCrDropoff] = useState('');
-  const [crAdults, setCrAdults] = useState(2);
-  const [crDate, setCrDate] = useState('');
-  const [crTime, setCrTime] = useState('');
-
-  // Transfer fields
+  // Transfer fields (Car Rental fields live inside CarRentalSearchWidget)
   const [trTripType, setTrTripType] = useState<'ONE_WAY' | 'ROUND_TRIP'>('ONE_WAY');
   const [trFrom, setTrFrom] = useState('');
   const [trTo, setTrTo] = useState('');
@@ -59,23 +53,14 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
-  const handleSearch = () => {
-    if (activeTab === 'Car Rental') {
-      const p = new URLSearchParams();
-      if (crPickup) p.set('from', crPickup);
-      if (crDropoff) p.set('to', crDropoff);
-      if (crAdults) p.set('adults', String(crAdults));
-      if (crDate) p.set('date', crDate);
-      navigate(`/car-rental${p.toString() ? '?' + p : ''}`);
-    } else {
-      const p = new URLSearchParams();
-      if (trFrom) p.set('from', trFrom);
-      if (trTo) p.set('to', trTo);
-      if (trAdults) p.set('adults', String(trAdults));
-      if (trDate) p.set('date', trDate);
-      p.set('tripType', trTripType);
-      navigate(`/transfers${p.toString() ? '?' + p : ''}`);
-    }
+  const handleTransferSearch = () => {
+    const p = new URLSearchParams();
+    if (trFrom) p.set('from', trFrom);
+    if (trTo) p.set('to', trTo);
+    if (trAdults) p.set('adults', String(trAdults));
+    if (trDate) p.set('date', trDate);
+    p.set('tripType', trTripType);
+    navigate(`/transfers${p.toString() ? '?' + p : ''}`);
   };
 
   const today = new Date().toISOString().split('T')[0];
@@ -120,55 +105,7 @@ export default function Home() {
 
             <div className="bg-white rounded-2xl rounded-tl-none shadow-xl border border-slate-100 p-6">
               {activeTab === 'Car Rental' ? (
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-4 items-end">
-                  {/* Pickup Location */}
-                  <FieldShell icon={MapPin} label="Pickup Location">
-                    <PlacesAutocomplete
-                      value={crPickup}
-                      onChange={setCrPickup}
-                      placeholder="Where to Next?"
-                      className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700 placeholder:text-slate-400"
-                    />
-                  </FieldShell>
-                  {/* Pickup Date & Time (combined) */}
-                  <FieldShell icon={Calendar} label="Date & Time">
-                    <input
-                      type="datetime-local"
-                      value={crDate && crTime ? `${crDate}T${crTime}` : crDate ? `${crDate}T00:00` : ''}
-                      min={`${today}T00:00`}
-                      onChange={e => {
-                        const [d, t] = e.target.value.split('T');
-                        setCrDate(d ?? '');
-                        setCrTime(t ?? '');
-                      }}
-                      className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700"
-                    />
-                  </FieldShell>
-                  {/* Drop location */}
-                  <FieldShell icon={MapPin} label="Drop location" iconClass="text-brand-primary">
-                    <PlacesAutocomplete
-                      value={crDropoff}
-                      onChange={setCrDropoff}
-                      placeholder="Enter drop location"
-                      className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700 placeholder:text-slate-400"
-                    />
-                  </FieldShell>
-                  {/* Drop Date & Time */}
-                  <FieldShell icon={Calendar} label="Drop Date & Time">
-                    <input
-                      type="datetime-local"
-                      min={`${today}T00:00`}
-                      className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-700"
-                    />
-                  </FieldShell>
-                  {/* Search button */}
-                  <button
-                    onClick={handleSearch}
-                    className="bg-brand-primary text-white h-[58px] px-8 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-brand-secondary transition-all shadow-md"
-                  >
-                    Search <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
+                <CarRentalSearchWidget embedded />
               ) : (
                 <div className="space-y-5">
                   {/* Trip type */}
@@ -227,7 +164,7 @@ export default function Home() {
                       />
                     </FieldShell>
                     <button
-                      onClick={handleSearch}
+                      onClick={handleTransferSearch}
                       className="bg-brand-primary text-white h-[58px] px-8 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-brand-secondary transition-all shadow-md"
                     >
                       Search <ArrowRight className="w-4 h-4" />

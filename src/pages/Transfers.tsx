@@ -5,7 +5,6 @@ import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-do
 import { addToCart } from '../api/bookings';
 import { useAuth } from '../contexts/AuthContext';
 import PlacesAutocomplete from '../components/PlacesAutocomplete';
-import apiClient from '../api/client';
 import carsApi, { Car } from '../api/cars';
 import { geocodeOne, haversineKm } from '../lib/geocode';
 
@@ -24,12 +23,22 @@ const TRIP_TYPES: { key: TripType; label: string }[] = [
 const ADULT_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const today = new Date().toISOString().split('T')[0];
 
-interface PriceQuote {
-  tierId: string;
-  tierLabel: string;
+/** Distance is computed client-side; per-car price comes from each car's own PER_KM bands. */
+interface DistanceInfo {
   distanceKm: number;
-  priceCents: number;
   found: boolean;
+}
+
+/** Find the matching PER_KM band for the given distance and return its price. Null = no band covers it. */
+function quoteCarFromBands(car: Car, distanceKm: number): number | null {
+  const km = Math.max(0, distanceKm);
+  const band = car.rates.find(r => {
+    if (r.period !== 'PER_KM') return false;
+    const from = r.kmFrom ?? 0;
+    const to = r.kmTo ?? Number.MAX_SAFE_INTEGER;
+    return km >= from && km <= to;
+  });
+  return band ? band.amountCents : null;
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -73,8 +82,8 @@ export default function Transfers() {
   // Agent markup
   const [markup, setMarkup] = useState('');
 
-  // Price state
-  const [quote,      setQuote]      = useState<PriceQuote | null>(null);
+  // Distance (price comes from each car's own PER_KM bands)
+  const [quote,      setQuote]      = useState<DistanceInfo | null>(null);
   const [quoting,    setQuoting]    = useState(false);
   const [quoteError, setQuoteError] = useState('');
 
@@ -87,16 +96,36 @@ export default function Transfers() {
   const [adding, setAdding] = useState(false);
   const [added,  setAdded]  = useState(false);
 
-  // Load all available cars on mount
+  // Clamp adults down if the chosen car can't seat the current selection.
+  useEffect(() => {
+    if (selectedCarId) {
+      const c = cars.find(x => x.id === selectedCarId);
+      if (c && adults > c.passengerCapacity) {
+        setAdults(c.passengerCapacity);
+      }
+    }
+  }, [selectedCarId, adults, cars]);
+
+  // Load all available transfer-eligible cars on mount.
+  // The catalog list returns RENTAL/BOTH today; we filter client-side to
+  // those with at least one PER_KM band (= priced for transfers).
   useEffect(() => {
     setCarsLoading(true);
     carsApi.catalogList({ size: 50 })
-      .then(r => setCars(r.data.data.items))
+      .then(r => {
+        const items: Car[] = r.data.data.items;
+        const transferCars = items.filter(c =>
+          (c.usageType === 'TRANSFER' || c.usageType === 'BOTH')
+          && c.rates.some(rt => rt.period === 'PER_KM')
+        );
+        setCars(transferCars);
+      })
       .catch(() => {})
       .finally(() => setCarsLoading(false));
   }, []);
 
-  // Auto-quote when locations are filled
+  // Compute the trip distance once locations are filled. The price for each
+  // car is then derived locally from that car's PER_KM bands.
   const fetchQuote = useCallback(async (fromVal: string, toVal: string) => {
     if (!fromVal || !toVal) { setQuote(null); return; }
     setQuoting(true);
@@ -112,16 +141,14 @@ export default function Transfers() {
         parseFloat(coordFrom.lat), parseFloat(coordFrom.lon),
         parseFloat(coordTo.lat),   parseFloat(coordTo.lon)
       ));
-      const res = await apiClient.get('/catalog/transfer-pricing/quote', { params: { distanceKm: distKm } });
-      setQuote(res.data.data);
+      setQuote({ distanceKm: distKm, found: true });
     } catch {
-      setQuoteError('Price calculation failed. Please try again.');
+      setQuoteError('Distance calculation failed. Please try again.');
     } finally {
       setQuoting(false);
     }
   }, []);
 
-  // Multi-trip quote: sum distances of all consecutive stop pairs
   const fetchMultiQuote = useCallback(async (stops: string[]) => {
     const filled = stops.filter(s => s.trim());
     if (filled.length < 2) { setQuote(null); return; }
@@ -141,11 +168,9 @@ export default function Transfers() {
           parseFloat(coords[i + 1]!.lat), parseFloat(coords[i + 1]!.lon)
         );
       }
-      const distKm = Math.round(totalKm);
-      const res = await apiClient.get('/catalog/transfer-pricing/quote', { params: { distanceKm: distKm } });
-      setQuote(res.data.data);
+      setQuote({ distanceKm: Math.round(totalKm), found: true });
     } catch {
-      setQuoteError('Price calculation failed. Please try again.');
+      setQuoteError('Distance calculation failed. Please try again.');
     } finally {
       setQuoting(false);
     }
@@ -163,12 +188,19 @@ export default function Transfers() {
   }, [from, to, tripType, multiStops, fetchQuote, fetchMultiQuote]);
 
   const markupPct    = parseFloat(markup) || 0;
-  const basePrice    = quote?.priceCents ?? 0;
-  const markupAmt    = Math.round(basePrice * markupPct / 100);
-  const customerPrice = basePrice + markupAmt;
   const fmt = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`;
 
   const selectedCar = cars.find(c => c.id === selectedCarId) ?? null;
+  const selectedCarPrice = selectedCar && quote ? quoteCarFromBands(selectedCar, quote.distanceKm) : null;
+  const cheapestPrice = quote
+    ? cars
+        .map(c => quoteCarFromBands(c, quote.distanceKm))
+        .filter((p): p is number => p != null)
+        .sort((a, b) => a - b)[0] ?? null
+    : null;
+  const basePrice    = selectedCarPrice ?? cheapestPrice ?? 0;
+  const markupAmt    = Math.round(basePrice * markupPct / 100);
+  const customerPrice = basePrice + markupAmt;
 
   const handleBook = async () => {
     if (!user) {
@@ -179,9 +211,17 @@ export default function Transfers() {
       alert('Please enter valid From and To locations to get a price.');
       return;
     }
-    if (!selectedCarId) {
+    if (!selectedCarId || !selectedCar) {
       alert('Please select a vehicle below.');
       document.getElementById('vehicle-select-section')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    if (selectedCarPrice == null) {
+      alert(`This car has no rate covering ${quote.distanceKm} km. Please pick another vehicle.`);
+      return;
+    }
+    if (adults > selectedCar.passengerCapacity) {
+      alert(`${selectedCar.name} seats only ${selectedCar.passengerCapacity}. Please reduce the adult count or pick a larger vehicle.`);
       return;
     }
     if (!date) { alert('Please select a date.'); return; }
@@ -189,10 +229,12 @@ export default function Transfers() {
     try {
       await addToCart({
         itemType: 'CAR_TRANSFER',
-        refId: quote.tierId,
+        // refId is now the chosen Car id. Backend re-derives the price from
+        // the matching PER_KM band on that car using options.distanceKm.
+        refId: selectedCarId,
         quantity: 1,
         options: {
-          unitPriceCents: quote.priceCents,
+          unitPriceCents: selectedCarPrice,
           pickupLocation: tripType === 'MULTI_TRIP' ? multiStops[0] : from,
           dropoffLocation: tripType === 'MULTI_TRIP' ? multiStops[multiStops.length - 1] : to,
           stops: tripType === 'MULTI_TRIP' ? multiStops.filter(Boolean) : undefined,
@@ -201,9 +243,9 @@ export default function Transfers() {
           date,
           time,
           distanceKm: quote.distanceKm,
-          tierLabel: quote.tierLabel,
           carId: selectedCarId,
-          carName: selectedCar?.name,
+          carName: selectedCar.name,
+          carCategory: selectedCar.category,
           markupPct: markupPct > 0 ? markupPct : undefined,
         },
       });
@@ -335,7 +377,7 @@ export default function Transfers() {
                 </div>
               ))}
 
-              {/* Adults */}
+              {/* Adults — capped at the selected car's capacity (or 10 if none picked yet) */}
               <div className="space-y-1.5">
                 <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1">
                   <Users className="w-3 h-3 text-brand-primary" /> Adult Count
@@ -343,9 +385,16 @@ export default function Transfers() {
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <select value={adults} onChange={e => setAdults(Number(e.target.value))}
                     className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 w-full">
-                    {ADULT_OPTIONS.map(n => <option key={n} value={n}>{n} Adult{n > 1 ? 's' : ''}</option>)}
+                    {ADULT_OPTIONS
+                      .filter(n => !selectedCar || n <= selectedCar.passengerCapacity)
+                      .map(n => <option key={n} value={n}>{n} Adult{n > 1 ? 's' : ''}</option>)}
                   </select>
                 </div>
+                {selectedCar && (
+                  <p className="text-[10px] text-slate-400">
+                    Max {selectedCar.passengerCapacity} for {selectedCar.name}
+                  </p>
+                )}
               </div>
 
               {/* Date */}
@@ -413,8 +462,12 @@ export default function Transfers() {
                     <motion.div key="price" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                       className="space-y-1">
                       <div className="flex items-baseline gap-3 flex-wrap">
-                        <span className="text-3xl font-display font-bold text-brand-primary">{fmt(basePrice)}</span>
-                        <span className="text-slate-400 text-sm">· {quote.distanceKm} km · {quote.tierLabel}</span>
+                        <span className="text-3xl font-display font-bold text-brand-primary">
+                          {selectedCarPrice != null ? fmt(selectedCarPrice) : cheapestPrice != null ? `from ${fmt(cheapestPrice)}` : '—'}
+                        </span>
+                        <span className="text-slate-400 text-sm">
+                          · {quote.distanceKm} km{selectedCar && ` · ${selectedCar.name}`}
+                        </span>
                       </div>
                       {isAgent && markupPct > 0 && (
                         <div className="flex gap-4 text-sm">
@@ -468,7 +521,7 @@ export default function Transfers() {
           <h2 className="text-2xl font-display font-bold text-brand-primary mt-1">Select Your Vehicle</h2>
           <p className="text-slate-500 text-sm mt-1">
             {quote?.found
-              ? `All vehicles available for this ${quote.distanceKm} km transfer — price is ${fmt(basePrice)} per trip.`
+              ? `Each vehicle below is priced for your ${quote.distanceKm} km transfer based on its own rate bands. Pick one to confirm.`
               : 'Enter pickup and drop-off locations above to see the price for each vehicle.'}
           </p>
         </div>
@@ -488,6 +541,13 @@ export default function Transfers() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {cars.map(car => {
               const isSelected = selectedCarId === car.id;
+              const carPrice = quote?.found ? quoteCarFromBands(car, quote.distanceKm) : null;
+              const matchingBand = car.rates.find(r => {
+                if (r.period !== 'PER_KM' || !quote?.found) return false;
+                const from = r.kmFrom ?? 0;
+                const to = r.kmTo ?? Number.MAX_SAFE_INTEGER;
+                return quote.distanceKm >= from && quote.distanceKm <= to;
+              });
               return (
                 <motion.div
                   key={car.id}
@@ -556,11 +616,15 @@ export default function Transfers() {
                     {/* Price + select button */}
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
                       <div>
-                        {quote?.found ? (
+                        {carPrice != null && matchingBand ? (
                           <>
-                            <p className="text-2xl font-display font-bold text-brand-primary">{fmt(basePrice)}</p>
-                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">per trip</p>
+                            <p className="text-2xl font-display font-bold text-brand-primary">{fmt(carPrice)}</p>
+                            <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                              {matchingBand.kmFrom ?? 0}–{matchingBand.kmTo ?? '∞'} km band
+                            </p>
                           </>
+                        ) : quote?.found ? (
+                          <p className="text-xs text-amber-600 italic">No rate covers {quote.distanceKm} km</p>
                         ) : (
                           <p className="text-xs text-slate-400 italic">Enter locations for price</p>
                         )}

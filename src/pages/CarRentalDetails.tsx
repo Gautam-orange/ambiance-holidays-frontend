@@ -67,6 +67,39 @@ export default function CarRentalDetails() {
 
   const today = new Date().toISOString().split('T')[0];
 
+  // ── Rental days ↔ pickup/dropoff date sync ──────────────────────────────
+  // Only one direction writes per user action — no useEffect loops.
+  // - Changing rentalDays  → updates dropoffDate (= pickupDate + N days)
+  // - Changing pickupDate  → keeps rentalDays, slides dropoffDate forward
+  // - Changing dropoffDate → recomputes rentalDays from the gap
+  const addDaysISO = (iso: string, n: number) => {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00');
+    d.setDate(d.getDate() + n);
+    return d.toISOString().split('T')[0];
+  };
+  const daysBetweenISO = (a: string, b: string) => {
+    if (!a || !b) return 0;
+    const ms = new Date(b + 'T00:00').getTime() - new Date(a + 'T00:00').getTime();
+    return Math.max(1, Math.round(ms / 86_400_000));
+  };
+
+  const handleRentalDaysChange = (next: number) => {
+    const days = Math.max(1, next);
+    setRentalDays(days);
+    if (pickupDate) setDropoffDate(addDaysISO(pickupDate, days));
+  };
+
+  const handlePickupDateChange = (next: string) => {
+    setPickupDate(next);
+    if (next) setDropoffDate(addDaysISO(next, rentalDays));
+  };
+
+  const handleDropoffDateChange = (next: string) => {
+    setDropoffDate(next);
+    if (pickupDate && next) setRentalDays(daysBetweenISO(pickupDate, next));
+  };
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -107,6 +140,11 @@ export default function CarRentalDetails() {
     if (!user) { navigate('/auth/login', { state: { from: location } }); return; }
     if (!car || !dailyRate) return;
     if (!pickupDate) { alert('Please select a pickup date'); return; }
+    if (adults < 1) { alert('Please pick at least 1 adult.'); return; }
+    if (adults > car.passengerCapacity) {
+      alert(`This car seats only ${car.passengerCapacity}. Please reduce the number of adults.`);
+      return;
+    }
     setAdding(true);
 
     const chosenExtras = extraServices.filter(s => selectedExtras.has(s.name));
@@ -325,38 +363,58 @@ export default function CarRentalDetails() {
             </div>
 
             <div className="p-6 space-y-5">
-              {/* Adults */}
+              {/* Adults — capped at the car's passenger capacity */}
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5" /> Number of Adults
                 </label>
                 <div className="flex items-center gap-4">
-                  <button onClick={() => setAdults(a => Math.max(1, a - 1))}
-                    className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                  <button
+                    type="button"
+                    onClick={() => setAdults(a => Math.max(1, a - 1))}
+                    disabled={adults <= 1}
+                    className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
                     <Minus className="w-4 h-4" />
                   </button>
                   <span className="text-2xl font-display font-bold text-slate-800 w-8 text-center">{adults}</span>
-                  <button onClick={() => setAdults(a => a + 1)}
-                    className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                  <button
+                    type="button"
+                    onClick={() => setAdults(a => Math.min(car.passengerCapacity, a + 1))}
+                    disabled={adults >= car.passengerCapacity}
+                    className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
                     <Plus className="w-4 h-4" />
                   </button>
+                  <span className="text-[11px] text-slate-400 ml-1">
+                    Max {car.passengerCapacity} passenger{car.passengerCapacity > 1 ? 's' : ''}
+                  </span>
                 </div>
+                {adults > car.passengerCapacity && (
+                  <p className="text-[11px] text-red-500 mt-1.5 font-semibold">
+                    This car seats only {car.passengerCapacity}. Please reduce the count.
+                  </p>
+                )}
               </div>
 
               {/* Rental Days */}
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Rental Days</label>
                 <div className="flex items-center gap-4">
-                  <button onClick={() => setRentalDays(d => Math.max(1, d - 1))}
-                    className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                  <button onClick={() => handleRentalDaysChange(rentalDays - 1)}
+                    className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={rentalDays <= 1}>
                     <Minus className="w-4 h-4" />
                   </button>
                   <span className="text-2xl font-display font-bold text-slate-800 w-8 text-center">{rentalDays}</span>
-                  <button onClick={() => setRentalDays(d => d + 1)}
+                  <button onClick={() => handleRentalDaysChange(rentalDays + 1)}
                     className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
+                {!pickupDate && (
+                  <p className="text-[10px] text-slate-400 mt-1.5">Pick a pickup date to see drop-off auto-fill.</p>
+                )}
               </div>
 
               {/* Pickup Location */}
@@ -377,7 +435,7 @@ export default function CarRentalDetails() {
                   <input
                     type="date"
                     value={pickupDate}
-                    onChange={e => setPickupDate(e.target.value)}
+                    onChange={e => handlePickupDateChange(e.target.value)}
                     min={today}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none"
                   />
@@ -413,8 +471,8 @@ export default function CarRentalDetails() {
                   <input
                     type="date"
                     value={dropoffDate}
-                    onChange={e => setDropoffDate(e.target.value)}
-                    min={pickupDate || today}
+                    onChange={e => handleDropoffDateChange(e.target.value)}
+                    min={pickupDate ? addDaysISO(pickupDate, 1) : today}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none"
                   />
                 </div>

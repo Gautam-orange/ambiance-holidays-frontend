@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MapPin, Users, CheckCircle2, Briefcase } from 'lucide-react';
+import { Users, CheckCircle2, Briefcase } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import carsApi, { Car, CarCategory, formatPrice, getDailyRate } from '../api/cars';
-import { cn } from '../lib/utils';
+import CarRentalSearchWidget from '../components/CarRentalSearchWidget';
 
 const CATEGORIES: CarCategory[] = ['LUXURY', 'PREMIUM', 'SUV', 'STANDARD', 'ECONOMY', 'MINIVAN'];
 const PAX_OPTIONS = [3, 4, 7];
@@ -28,8 +28,8 @@ export default function CarRental() {
   const [markup, setMarkup] = useState('');
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [heroPickup, setHeroPickup] = useState(() => searchParams.get('from') ?? '');
-  const [heroDropoff, setHeroDropoff] = useState(() => searchParams.get('to') ?? '');
+  const heroPickup = searchParams.get('from') ?? '';
+  const heroDropoff = searchParams.get('to') ?? '';
 
   const minPax = paxOptions.size > 0 ? Math.min(...Array.from(paxOptions)) : undefined;
   const category = categories.size === 1 ? Array.from(categories)[0] : undefined;
@@ -116,43 +116,35 @@ export default function CarRental() {
   return (
     <div className="bg-slate-50 min-h-screen">
       {/* Hero */}
-      <div className="bg-brand-900 text-white py-20 relative overflow-hidden">
+      <div className="bg-brand-900 text-white pt-20 pb-32 relative overflow-hidden">
         <div className="absolute inset-0">
           <img src="/images/pexels-vinixhc-28937727.jpg" alt="Mauritius" className="w-full h-full object-cover opacity-20" />
           <div className="absolute inset-0 bg-gradient-to-r from-brand-900/90 to-brand-900/40" />
         </div>
-        <div className="max-w-7xl mx-auto px-8 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
+        <div className="max-w-7xl mx-auto px-8 relative z-10 space-y-10">
+          <div className="space-y-4 max-w-2xl">
             <h1 className="text-5xl font-display font-bold leading-tight">Luxury <span className="text-brand-primary italic">Rentals</span></h1>
-            <p className="text-white/60 max-w-md font-medium text-lg leading-relaxed">Drive across the island in style. From premium SUVs to cost-effective standards.</p>
-          </div>
-          <div className="bg-white p-8 rounded-3xl shadow-2xl border border-white/10 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pick up</label>
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                  <MapPin className="w-4 h-4 text-brand-primary" />
-                  <input type="text" placeholder="Location" value={heroPickup} onChange={e => setHeroPickup(e.target.value)}
-                    className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 w-full" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Drop off</label>
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                  <MapPin className="w-4 h-4 text-brand-primary" />
-                  <input type="text" placeholder="Location" value={heroDropoff} onChange={e => setHeroDropoff(e.target.value)}
-                    className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 w-full" />
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => { setPage(0); fetchCars(); }}
-              className="w-full bg-brand-primary text-white py-4 rounded-2xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.01] transition-transform">
-              Search Available Cars
-            </button>
+            <p className="text-white/70 font-medium text-lg leading-relaxed">Drive across the island in style. Choose your dates, locations and party size — we handle the rest.</p>
           </div>
         </div>
+        {/* Search widget overlaps the hero/content boundary so it sits prominently */}
+        <div className="max-w-7xl mx-auto px-8 relative z-20 -mb-24">
+          <CarRentalSearchWidget
+            initial={{
+              pickup: heroPickup,
+              dropoff: heroDropoff,
+              adults: Number(searchParams.get('adults')) || 2,
+              pickupDate: searchParams.get('date') ?? '',
+              pickupTime: searchParams.get('time') ?? '',
+              dropoffDate: searchParams.get('dropoffDate') ?? '',
+              dropoffTime: searchParams.get('dropoffTime') ?? '',
+            }}
+          />
+        </div>
       </div>
+
+      {/* Spacer to clear the overlapping search widget */}
+      <div className="h-24" />
 
       {/* Content — cars LEFT, filters RIGHT */}
       <div className="max-w-7xl mx-auto px-8 py-16 grid grid-cols-1 lg:grid-cols-4 gap-12">

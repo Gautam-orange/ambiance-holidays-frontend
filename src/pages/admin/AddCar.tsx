@@ -72,9 +72,66 @@ export default function AddCar() {
     setActiveRates(prev => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r));
   };
 
+  /**
+   * Mirror of backend `validateRates`. Catches problems before round-tripping
+   * to the server so the admin sees a clear error inline.
+   */
+  const validateRatesClientSide = (): string | null => {
+    const filled = activeRates.filter(r => r.amountEur.trim() !== '');
+    const isTransfer = usageType === 'TRANSFER' || usageType === 'BOTH';
+
+    // Per-row checks
+    for (let i = 0; i < filled.length; i++) {
+      const r = filled[i];
+      const amt = parseFloat(r.amountEur);
+      if (Number.isNaN(amt) || amt < 0) {
+        return `Rate row ${i + 1}: price must be a non-negative number.`;
+      }
+      if (r.period === 'PER_KM') {
+        const from = r.kmFrom.trim() ? parseInt(r.kmFrom) : 0;
+        const to = r.kmTo.trim() ? parseInt(r.kmTo) : null;
+        if (Number.isNaN(from) || from < 0) {
+          return `Transfer band ${i + 1}: From-km cannot be negative.`;
+        }
+        if (to !== null && (Number.isNaN(to) || to <= from)) {
+          return `Transfer band ${i + 1}: To-km must be greater than From-km.`;
+        }
+      }
+    }
+
+    if (isTransfer) {
+      const perKm = filled.filter(r => r.period === 'PER_KM');
+      if (perKm.length === 0) {
+        return 'Transfer-eligible cars need at least one priced rate band (e.g. 0–20 km).';
+      }
+      // Overlap check: sort by kmFrom and ensure no band's start ≤ previous's end.
+      const sorted = [...perKm].sort((a, b) => {
+        const af = a.kmFrom.trim() ? parseInt(a.kmFrom) : 0;
+        const bf = b.kmFrom.trim() ? parseInt(b.kmFrom) : 0;
+        return af - bf;
+      });
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const curr = sorted[i];
+        const prevTo = prev.kmTo.trim() ? parseInt(prev.kmTo) : Number.MAX_SAFE_INTEGER;
+        const currFrom = curr.kmFrom.trim() ? parseInt(curr.kmFrom) : 0;
+        if (currFrom <= prevTo) {
+          return `Transfer bands overlap: band ending at ${prevTo} km conflicts with band starting at ${currFrom} km.`;
+        }
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const validationError = validateRatesClientSide();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     const rates: CarRateRequest[] = activeRates
       .filter(r => r.amountEur.trim() !== '')
@@ -286,19 +343,35 @@ export default function AddCar() {
 
             {/* Pricing Rates */}
             <div className="space-y-4">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Pricing Rates ($) — {usageType === 'TRANSFER' ? 'Per-KM bands' : 'Time-based'}
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Pricing Rates ($) — {usageType === 'TRANSFER' ? 'Per-KM bands (required)' : usageType === 'BOTH' ? 'Time-based + Per-KM bands' : 'Time-based'}
+                </label>
+                {(usageType === 'TRANSFER' || usageType === 'BOTH') && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveRates(prev => [...prev, { period: 'PER_KM', amountEur: '', kmFrom: '', kmTo: '' }])}
+                    className="text-[11px] font-bold text-brand-primary hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add band
+                  </button>
+                )}
+              </div>
+              {(usageType === 'TRANSFER' || usageType === 'BOTH') && (
+                <p className="text-[11px] text-slate-500 -mt-2">
+                  Bands must not overlap. Leave the last band's "to" blank for "and above".
+                </p>
+              )}
               <div className="space-y-3">
                 {activeRates.map((rate, idx) => (
                   <div key={idx} className="flex items-center gap-3">
                     <div className="w-28 text-xs font-bold text-slate-500 uppercase tracking-wider">
                       {rate.period === 'PER_KM'
-                        ? `${rate.kmFrom}–${rate.kmTo || '∞'} km`
+                        ? `${rate.kmFrom || '0'}–${rate.kmTo || '∞'} km`
                         : rate.period}
                     </div>
                     <div className="flex-1 relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">Rs</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">$</span>
                       <input
                         type="number"
                         min={0}
@@ -310,15 +383,28 @@ export default function AddCar() {
                       />
                     </div>
                     {rate.period === 'PER_KM' && (
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <input type="number" min={0} placeholder="from"
-                          value={rate.kmFrom} onChange={e => updateRate(idx, 'kmFrom', e.target.value)}
-                          className="w-16 px-2 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center" />
-                        <span>to</span>
-                        <input type="number" min={0} placeholder="∞"
-                          value={rate.kmTo} onChange={e => updateRate(idx, 'kmTo', e.target.value)}
-                          className="w-16 px-2 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center" />
-                      </div>
+                      <>
+                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                          <input type="number" min={0} placeholder="from"
+                            value={rate.kmFrom} onChange={e => updateRate(idx, 'kmFrom', e.target.value)}
+                            className="w-16 px-2 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center" />
+                          <span>to</span>
+                          <input type="number" min={0} placeholder="∞"
+                            value={rate.kmTo} onChange={e => updateRate(idx, 'kmTo', e.target.value)}
+                            className="w-16 px-2 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center" />
+                        </div>
+                        {/* Allow removing extras (keep at least one band) */}
+                        {activeRates.filter(r => r.period === 'PER_KM').length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveRates(prev => prev.filter((_, i) => i !== idx))}
+                            className="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-300 flex items-center justify-center transition-colors"
+                            aria-label="Remove band"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 ))}
