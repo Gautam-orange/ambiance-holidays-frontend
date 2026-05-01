@@ -110,14 +110,8 @@ export const clearCart = () =>
   });
 
 // Checkout (legacy: creates a booking immediately, no payment step)
-export const checkout = (data: {
-  customerFirstName: string;
-  customerLastName: string;
-  customerEmail: string;
-  customerPhone?: string;
-  serviceDate: string;
-  specialRequests?: string;
-}) => api.post('/bookings', data).then(r => r.data.data as Booking);
+export const checkout = (data: CheckoutPayload) =>
+  api.post('/bookings', data).then(r => r.data.data as Booking);
 
 // Peach Payments V2 — initiate a checkout: creates a PENDING booking and a
 // Peach checkout, returns the redirectUrl the frontend should send the
@@ -128,17 +122,22 @@ export interface PeachInitiateResponse {
   checkoutId: string;
   redirectUrl: string;
 }
-export const initiatePeachCheckout = (
-  data: {
-    customerFirstName: string;
-    customerLastName: string;
-    customerEmail: string;
-    customerPhone?: string;
-    serviceDate: string;
-    specialRequests?: string;
-  },
-  currency?: string,
-) =>
+export interface CheckoutPayload {
+  customerFirstName: string;
+  customerLastName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  /** Required: full international format (e.g. "+230 5712 3456"). */
+  whatsappNumber: string;
+  /** Required: free-form (we send the country name from the dropdown). */
+  nationality: string;
+  /** Required: free-form full address. */
+  address: string;
+  serviceDate: string;
+  specialRequests?: string;
+}
+
+export const initiatePeachCheckout = (data: CheckoutPayload, currency?: string) =>
   api
     .post('/payments/peach/initiate', data, { params: currency ? { currency } : undefined })
     .then(r => r.data.data as PeachInitiateResponse);

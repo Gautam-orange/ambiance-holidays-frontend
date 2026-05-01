@@ -1,12 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, ArrowLeft, User, Phone, Mail, MapPin, Globe, FileText } from 'lucide-react';
+import { CreditCard, ArrowLeft, User, Phone, Mail, MapPin, Globe, FileText, AlertCircle } from 'lucide-react';
 import { getCart, initiatePeachCheckout, formatMoney, type CartSummary } from '../api/bookings';
 import { useAuth } from '../contexts/AuthContext';
+import { COUNTRIES } from '../lib/countries';
+import { PHONE_CODES } from '../lib/phoneCodes';
 
 const SUPPORTED_CURRENCIES = ['USD', 'MUR', 'INR'] as const;
 type Currency = typeof SUPPORTED_CURRENCIES[number];
 
+/**
+ * Checkout — collects every field the backend `CheckoutRequest` DTO requires
+ * and a few extras stored on the Customer entity (whatsapp, nationality,
+ * address). Phone & WhatsApp use a country-code dropdown so the backend
+ * always receives a valid international-format number.
+ */
 export default function CheckoutPage() {
   const [cart, setCart] = useState<CartSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -14,6 +22,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [currency, setCurrency] = useState<Currency>('USD');
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAgent = user?.role === 'B2B_AGENT';
@@ -22,10 +31,16 @@ export default function CheckoutPage() {
     customerFirstName: '',
     customerLastName: '',
     customerEmail: '',
-    customerPhone: '',
+    /** Phone country code (e.g. "+230"). */
+    phoneCountryCode: '+230',
+    /** Phone digits only — country code is concatenated at submit. */
+    phoneNumber: '',
+    /** WhatsApp country code (defaults to phone code, but user can override). */
+    whatsappCountryCode: '+230',
     whatsappNumber: '',
+    /** Nationality — country name from dropdown. */
+    nationality: 'Mauritius',
     address: '',
-    nationality: '',
     serviceDate: '',
     specialRequests: '',
   });
@@ -52,22 +67,57 @@ export default function CheckoutPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(p => ({ ...p, [e.target.name]: e.target.value }));
 
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setTouched(t => ({ ...t, [e.target.name]: true }));
+
+  // Validation rules. Returns null when valid, error message when not.
+  const validators: Record<string, (v: string) => string | null> = {
+    customerFirstName: v => (!v.trim() ? 'First name is required' : v.length > 100 ? 'Too long' : null),
+    customerLastName:  v => (!v.trim() ? 'Last name is required'  : v.length > 100 ? 'Too long' : null),
+    customerEmail:     v => (!v.trim() ? 'Email is required' :
+                              !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Invalid email' : null),
+    phoneNumber:       v => (v.trim() && !/^[0-9 \-()]{6,20}$/.test(v) ? 'Digits only, 6–20 chars' : null),
+    whatsappNumber:    v => (!v.trim() ? 'WhatsApp number is required' :
+                              !/^[0-9 \-()]{6,20}$/.test(v) ? 'Digits only, 6–20 chars' : null),
+    nationality:       v => (!v.trim() ? 'Nationality is required' : null),
+    address:           v => (!v.trim() ? 'Address is required' : null),
+    serviceDate:       v => (!v ? 'Service date is required' :
+                              new Date(v) < new Date(new Date().toDateString()) ? 'Date is in the past' : null),
+  };
+
+  const fieldError = (name: string): string | null => {
+    const fn = validators[name];
+    if (!fn) return null;
+    return fn((form as any)[name] ?? '');
+  };
+
+  const formIsValid = useMemo(
+    () => Object.keys(validators).every(k => fieldError(k) === null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [form],
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Mark every field as touched so all errors render.
+    setTouched(Object.fromEntries(Object.keys(validators).map(k => [k, true])));
     if (!agreedToTerms) { setError('Please accept the Terms & Conditions to proceed.'); return; }
+    if (!formIsValid) { setError('Please correct the highlighted fields.'); return; }
     setError('');
     setSubmitting(true);
     try {
-      // Backend creates a PENDING booking + Peach V2 checkout. Response gives
-      // us a redirectUrl pointing at Peach's hosted checkout page — send the
-      // browser there. After payment Peach redirects back to /payment/return.
       const init = await initiatePeachCheckout({
-        customerFirstName: form.customerFirstName,
-        customerLastName: form.customerLastName,
-        customerEmail: form.customerEmail,
-        customerPhone: form.customerPhone || form.whatsappNumber,
+        customerFirstName: form.customerFirstName.trim(),
+        customerLastName: form.customerLastName.trim(),
+        customerEmail: form.customerEmail.trim(),
+        customerPhone: form.phoneNumber.trim()
+          ? `${form.phoneCountryCode} ${form.phoneNumber.trim()}`
+          : undefined,
+        whatsappNumber: `${form.whatsappCountryCode} ${form.whatsappNumber.trim()}`,
+        nationality: form.nationality,
+        address: form.address.trim(),
         serviceDate: form.serviceDate,
-        specialRequests: form.specialRequests || undefined,
+        specialRequests: form.specialRequests.trim() || undefined,
       }, currency);
       window.location.href = init.redirectUrl;
     } catch (err: any) {
@@ -82,7 +132,17 @@ export default function CheckoutPage() {
 
   if (loading) return <div className="flex items-center justify-center h-64 text-slate-400">Loading…</div>;
 
-  const inputCls = 'w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none';
+  const inputCls = (name: string) => {
+    const showErr = touched[name] && fieldError(name);
+    return 'w-full px-4 py-2.5 rounded-xl border text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none ' +
+      (showErr ? 'border-red-300' : 'border-slate-200');
+  };
+
+  const ErrText = ({ name }: { name: string }) => {
+    const err = touched[name] ? fieldError(name) : null;
+    if (!err) return null;
+    return <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{err}</p>;
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
@@ -94,9 +154,11 @@ export default function CheckoutPage() {
       <h1 className="text-3xl font-display font-bold text-slate-800 mb-8">Checkout</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
+        <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6" noValidate>
           {error && (
-            <div className="bg-red-50 text-red-600 border border-red-200 rounded-xl p-4 text-sm">{error}</div>
+            <div className="bg-red-50 text-red-600 border border-red-200 rounded-xl p-4 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+            </div>
           )}
 
           {/* Agent info block — pre-filled, read-only */}
@@ -126,41 +188,88 @@ export default function CheckoutPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">First Name *</label>
-                <input name="customerFirstName" value={form.customerFirstName} onChange={handleChange} required className={inputCls} />
+                <input name="customerFirstName" value={form.customerFirstName} onChange={handleChange} onBlur={handleBlur}
+                  required className={inputCls('customerFirstName')} />
+                <ErrText name="customerFirstName" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Last Name *</label>
-                <input name="customerLastName" value={form.customerLastName} onChange={handleChange} required className={inputCls} />
+                <input name="customerLastName" value={form.customerLastName} onChange={handleChange} onBlur={handleBlur}
+                  required className={inputCls('customerLastName')} />
+                <ErrText name="customerLastName" />
               </div>
+
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                  <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> Email *</span>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                  <Mail className="w-3 h-3" /> Email *
                 </label>
-                <input name="customerEmail" type="email" value={form.customerEmail} onChange={handleChange} required className={inputCls} />
+                <input name="customerEmail" type="email" value={form.customerEmail} onChange={handleChange} onBlur={handleBlur}
+                  required className={inputCls('customerEmail')} />
+                <ErrText name="customerEmail" />
               </div>
+
+              {/* Phone with country code */}
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                  <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> Phone</span>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                  <Phone className="w-3 h-3" /> Phone
                 </label>
-                <input name="customerPhone" value={form.customerPhone} onChange={handleChange} className={inputCls} placeholder="+1 555 0000" />
+                <div className="flex gap-2">
+                  <select name="phoneCountryCode" value={form.phoneCountryCode} onChange={handleChange}
+                    className="px-2 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none w-[110px]">
+                    {PHONE_CODES.map(p => (
+                      <option key={p.iso + p.code} value={p.code}>{p.iso} {p.code}</option>
+                    ))}
+                  </select>
+                  <input name="phoneNumber" inputMode="tel" value={form.phoneNumber} onChange={handleChange} onBlur={handleBlur}
+                    className={inputCls('phoneNumber')} placeholder="5712 3456" />
+                </div>
+                <ErrText name="phoneNumber" />
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                  <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-green-500" /> WhatsApp Number *</span>
+
+              {/* WhatsApp with country code (required) */}
+              <div className="col-span-2 md:col-span-1">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                  <Phone className="w-3 h-3 text-green-500" /> WhatsApp Number *
                 </label>
-                <input name="whatsappNumber" value={form.whatsappNumber} onChange={handleChange} required className={inputCls} placeholder="+1 555 0000" />
+                <div className="flex gap-2">
+                  <select name="whatsappCountryCode" value={form.whatsappCountryCode} onChange={handleChange}
+                    className="px-2 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none w-[110px]">
+                    {PHONE_CODES.map(p => (
+                      <option key={p.iso + p.code} value={p.code}>{p.iso} {p.code}</option>
+                    ))}
+                  </select>
+                  <input name="whatsappNumber" inputMode="tel" value={form.whatsappNumber} onChange={handleChange} onBlur={handleBlur}
+                    required className={inputCls('whatsappNumber')} placeholder="5712 3456" />
+                </div>
+                <ErrText name="whatsappNumber" />
               </div>
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                  <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> Nationality *</span>
+
+              {/* Nationality dropdown */}
+              <div className="col-span-2 md:col-span-1">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                  <Globe className="w-3 h-3" /> Nationality *
                 </label>
-                <input name="nationality" value={form.nationality} onChange={handleChange} required className={inputCls} placeholder="e.g. French" />
+                <select name="nationality" value={form.nationality} onChange={handleChange} onBlur={handleBlur}
+                  required className={inputCls('nationality')}>
+                  <option value="">— Select country —</option>
+                  {COUNTRIES.map((c, i) => (
+                    <React.Fragment key={c.code}>
+                      {i === 10 && <option disabled>──────────</option>}
+                      <option value={c.name}>{c.name}</option>
+                    </React.Fragment>
+                  ))}
+                </select>
+                <ErrText name="nationality" />
               </div>
+
+              {/* Address */}
               <div className="col-span-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                  <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> Address *</span>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Address *
                 </label>
-                <input name="address" value={form.address} onChange={handleChange} required className={inputCls} placeholder="Street, City, Country" />
+                <input name="address" value={form.address} onChange={handleChange} onBlur={handleBlur}
+                  required className={inputCls('address')} placeholder="Street, City, Country" />
+                <ErrText name="address" />
               </div>
             </div>
           </div>
@@ -173,9 +282,13 @@ export default function CheckoutPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Service Date *</label>
-                <input name="serviceDate" type="date" value={form.serviceDate} onChange={handleChange} required
-                  min={new Date().toISOString().split('T')[0]}
-                  className={inputCls} />
+                <input name="serviceDate" type="date" value={form.serviceDate} onChange={handleChange} onBlur={handleBlur}
+                  required min={new Date().toISOString().split('T')[0]}
+                  className={inputCls('serviceDate')} />
+                <ErrText name="serviceDate" />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Earliest service date for items in your cart. Per-item dates collected at add-to-cart still apply.
+                </p>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Special Requests</label>
