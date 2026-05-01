@@ -1,19 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, XCircle } from 'lucide-react';
+import { checkPeachStatus, type PeachStatusResponse } from '../api/bookings';
 
 /**
- * Landing page after Peach Payments hosted checkout. Our backend's
- * /payments/peach/return endpoint receives the POST from Peach, updates the
- * payment + booking, then 303-redirects the customer's browser here with:
- *
- *    ?status=success | ?status=failed
- *    &ref=<bookingReference>
- *    &code=<peachResultCode>
- *
- * This page just routes to /payment/success or /payment/failure based on those
- * query params. No further backend call is needed because the result was
- * already persisted server-side.
+ * Landing page Peach Payments redirects to after the customer finishes (or
+ * abandons) the V2 hosted checkout. Reads ?id=… from the URL, asks the
+ * backend to verify the payment with Peach, and routes to /payment/success
+ * or /payment/failure.
  */
 export default function PaymentReturnPage() {
   const [params] = useSearchParams();
@@ -25,22 +19,41 @@ export default function PaymentReturnPage() {
     if (ranRef.current) return;
     ranRef.current = true;
 
-    const status = params.get('status');
-    const ref    = params.get('ref');
-    const code   = params.get('code');
+    // Backend's /return redirect sets ?ref=<merchantTransactionId or checkoutId>.
+    // Older code paths used ?id= or ?checkoutId= — accept all variants so
+    // refreshing or coming from a legacy link still works.
+    const ref =
+      params.get('ref')
+      ?? params.get('id')
+      ?? params.get('checkoutId')
+      ?? params.get('resourcePath')?.split('/').pop()
+      ?? '';
 
-    if (!status) {
-      setError('Missing payment status in return URL.');
+    if (!ref) {
+      setError('Missing checkout reference in return URL.');
       return;
     }
 
-    if (status === 'success' && ref) {
-      navigate(`/payment/success?ref=${encodeURIComponent(ref)}`, { replace: true });
-    } else {
-      const reason = code ?? 'unknown';
-      navigate(`/payment/failure?reason=${encodeURIComponent(reason)}${ref ? `&ref=${encodeURIComponent(ref)}` : ''}`,
-        { replace: true });
-    }
+    // No `cancelled` flag — `ranRef` already prevents a duplicate API call
+    // under React StrictMode's double-mount. Adding a cleanup-cancel on top
+    // backfires: the cleanup fires synchronously between the two mounts and
+    // suppresses the only navigate call we'd make.
+    checkPeachStatus(ref)
+      .then((res: PeachStatusResponse) => {
+        if (res.success) {
+          navigate(`/payment/success?ref=${encodeURIComponent(res.bookingReference)}`, { replace: true });
+        } else {
+          const reason = res.resultDescription ?? res.resultCode ?? 'unknown';
+          navigate(`/payment/failure?reason=${encodeURIComponent(reason)}`, { replace: true });
+        }
+      })
+      .catch((err: any) => {
+        setError(
+          err?.response?.data?.message
+          ?? err?.response?.data?.error?.message
+          ?? 'Could not verify payment status.',
+        );
+      });
   }, [params, navigate]);
 
   if (error) {
@@ -67,8 +80,10 @@ export default function PaymentReturnPage() {
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
         <Loader2 className="w-12 h-12 text-brand-primary animate-spin mx-auto mb-6" />
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Confirming payment…</h1>
-        <p className="text-gray-500 text-sm">One moment while we redirect you to your booking confirmation.</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Verifying payment…</h1>
+        <p className="text-gray-500 text-sm">
+          Please wait while we confirm your booking with the payment gateway. Do not close this window.
+        </p>
       </div>
     </div>
   );

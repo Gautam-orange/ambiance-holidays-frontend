@@ -119,16 +119,14 @@ export const checkout = (data: {
   specialRequests?: string;
 }) => api.post('/bookings', data).then(r => r.data.data as Booking);
 
-// Peach Payments V1 — initiate a checkout: creates a PENDING booking and
-// returns the signed form params the frontend should auto-submit to Peach.
+// Peach Payments V2 — initiate a checkout: creates a PENDING booking and a
+// Peach checkout, returns the redirectUrl the frontend should send the
+// browser to. After payment Peach redirects back to /payment/return?id=...
 export interface PeachInitiateResponse {
   bookingId: string;
   bookingReference: string;
   checkoutId: string;
-  /** URL to POST the HTML form to — typically https://testsecure.peachpayments.com/checkout */
-  submitUrl: string;
-  /** Every key/value pair (incl. signature) to include as <input> fields in the form. */
-  formFields: Record<string, string>;
+  redirectUrl: string;
 }
 export const initiatePeachCheckout = (
   data: {
@@ -155,9 +153,11 @@ export interface PeachStatusResponse {
   resultCode: string | null;
   resultDescription: string | null;
 }
-export const checkPeachStatus = (checkoutId: string) =>
+/** Accepts either a Peach checkoutId or our booking reference (Peach's V2
+ *  redirect carries merchantTransactionId, which we use as the booking ref).  */
+export const checkPeachStatus = (key: string) =>
   api
-    .get('/payments/peach/status', { params: { checkoutId } })
+    .get('/payments/peach/status', { params: { ref: key } })
     .then(r => r.data.data as PeachStatusResponse);
 
 // Bookings

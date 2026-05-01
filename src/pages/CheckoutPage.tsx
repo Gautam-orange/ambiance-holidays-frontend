@@ -58,7 +58,9 @@ export default function CheckoutPage() {
     setError('');
     setSubmitting(true);
     try {
-      // 1. Backend creates a PENDING booking and returns the signed Peach form params.
+      // Backend creates a PENDING booking + Peach V2 checkout. Response gives
+      // us a redirectUrl pointing at Peach's hosted checkout page — send the
+      // browser there. After payment Peach redirects back to /payment/return.
       const init = await initiatePeachCheckout({
         customerFirstName: form.customerFirstName,
         customerLastName: form.customerLastName,
@@ -67,22 +69,7 @@ export default function CheckoutPage() {
         serviceDate: form.serviceDate,
         specialRequests: form.specialRequests || undefined,
       }, currency);
-
-      // 2. Build a hidden HTML form, submit it — the browser POSTs to Peach's
-      // hosted checkout. After payment Peach POSTs back to our /return endpoint.
-      const peachForm = document.createElement('form');
-      peachForm.method = 'POST';
-      peachForm.action = init.submitUrl;
-      peachForm.style.display = 'none';
-      for (const [name, value] of Object.entries(init.formFields)) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        peachForm.appendChild(input);
-      }
-      document.body.appendChild(peachForm);
-      peachForm.submit();
+      window.location.href = init.redirectUrl;
     } catch (err: any) {
       setError(
         err?.response?.data?.error?.message ??
