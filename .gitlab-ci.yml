@@ -1,0 +1,39 @@
+# GitLab CI for the Ambiance Holidays React/Vite frontend.
+#
+# Replaces the default Auto DevOps pipeline (which calls `npm test` — a
+# script we don't define — and fails immediately). This pipeline runs the
+# real production build path: `vite build`. If it compiles, it ships.
+#
+# Stages:
+#   - build: produces the dist/ artifact
+
+image: node:22-alpine
+
+variables:
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  CI: "true"
+
+cache:
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - .npm/
+    - node_modules/
+
+stages:
+  - build
+
+build:
+  stage: build
+  before_script:
+    - node --version
+    - npm --version
+  script:
+    - npm ci --prefer-offline --no-audit --no-fund
+    - npm run build
+  artifacts:
+    name: "ambiance-holidays-frontend-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - dist/
+    expire_in: 1 week
