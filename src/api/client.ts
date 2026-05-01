@@ -4,7 +4,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 //
 // Resolution order:
 //   1. VITE_API_URL  — set via .env / .env.development / .env.production. The
-//      production build at ambianceholidays.ci.admin.in uses the absolute URL
+//      production build at ambianceholidays.ciadmin.in uses the absolute URL
 //      from .env.production. Local dev uses the relative `/api/v1` which
 //      Vite proxies to localhost:8080.
 //   2. Same-origin fallback `/api/v1` — relative, so requests always go to
