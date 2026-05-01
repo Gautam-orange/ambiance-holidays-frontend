@@ -1,6 +1,17 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const BASE_URL = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8080/api/v1';
+// API base URL.
+//
+// Resolution order:
+//   1. VITE_API_URL  — set via .env / .env.development / .env.production. The
+//      production build at ambianceholidays.ci.admin.in uses the absolute URL
+//      from .env.production. Local dev uses the relative `/api/v1` which
+//      Vite proxies to localhost:8080.
+//   2. Same-origin fallback `/api/v1` — relative, so requests always go to
+//      whatever host served the page. Safer than a hardcoded localhost
+//      because a missing env never accidentally calls a developer's machine
+//      from a deployed environment.
+const BASE_URL = (import.meta as any).env?.VITE_API_URL ?? '/api/v1';
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
