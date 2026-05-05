@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Building2, Mail, Phone, MapPin, Award, BarChart3, CreditCard } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { Building2, Mail, Phone, MapPin, Globe } from 'lucide-react';
 
 interface UserInfo {
   id: string;
@@ -13,14 +12,18 @@ interface UserInfo {
     companyName: string;
     tier: string;
     status: string;
+    country?: string;
+    city?: string;
+    address?: string;
+    businessType?: string;
+    phone?: string;
   };
 }
 
-const TIER_COLORS: Record<string, string> = {
-  PLATINUM: 'bg-indigo-100 text-indigo-700',
-  GOLD: 'bg-amber-100 text-amber-700',
-  SILVER: 'bg-slate-100 text-slate-600',
-  BRONZE: 'bg-orange-100 text-orange-700',
+const STATUS_COLORS: Record<string, string> = {
+  ACTIVE: 'bg-green-50 text-green-700',
+  PENDING: 'bg-amber-50 text-amber-700',
+  SUSPENDED: 'bg-red-50 text-red-700',
 };
 
 export default function AgentProfile() {
@@ -36,6 +39,7 @@ export default function AgentProfile() {
   if (!user) return <div className="p-12 text-center text-slate-400">Loading profile…</div>;
 
   const agent = user.agent;
+  const businessTypeLabel = agent?.businessType ? agent.businessType.replaceAll('_', ' ') : null;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-6">
@@ -56,13 +60,14 @@ export default function AgentProfile() {
             </div>
             {agent && (
               <div className="flex items-center gap-3 mt-3">
-                <span className={cn('px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider',
-                  TIER_COLORS[agent.tier] ?? 'bg-slate-100 text-slate-600')}>
-                  {agent.tier}
-                </span>
-                <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full uppercase">
+                <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase ${STATUS_COLORS[agent.status] ?? 'bg-slate-100 text-slate-600'}`}>
                   {agent.status}
                 </span>
+                {agent.phone && (
+                  <span className="flex items-center gap-1 text-xs text-slate-500">
+                    <Phone className="w-3.5 h-3.5" /> {agent.phone}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -75,38 +80,42 @@ export default function AgentProfile() {
             <Building2 className="w-5 h-5 text-brand-primary" />
             Company Information
           </h3>
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-4">
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
             <div>
               <dt className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Company</dt>
               <dd className="font-medium text-slate-800">{agent.companyName}</dd>
             </div>
             <div>
               <dt className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Agent ID</dt>
-              <dd className="font-mono text-sm text-slate-600">{agent.id.slice(0, 8)}…</dd>
+              <dd className="font-mono text-sm text-slate-600 break-all">{agent.id}</dd>
             </div>
+            {businessTypeLabel && (
+              <div>
+                <dt className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Business Type</dt>
+                <dd className="font-medium text-slate-800">{businessTypeLabel}</dd>
+              </div>
+            )}
+            {agent.phone && (
+              <div>
+                <dt className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />Mobile</dt>
+                <dd className="font-medium text-slate-800">{agent.phone}</dd>
+              </div>
+            )}
+            {(agent.country || agent.city) && (
+              <div>
+                <dt className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" />Country / City</dt>
+                <dd className="font-medium text-slate-800">{agent.country}{agent.city ? `, ${agent.city}` : ''}</dd>
+              </div>
+            )}
+            {agent.address && (
+              <div className="md:col-span-2">
+                <dt className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />Address</dt>
+                <dd className="font-medium text-slate-800">{agent.address}</dd>
+              </div>
+            )}
           </dl>
         </div>
       )}
-
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-        <h3 className="font-display font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <Award className="w-5 h-5 text-brand-primary" />
-          Tier Benefits
-        </h3>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          {[
-            { icon: BarChart3, label: 'Commission on every booking' },
-            { icon: CreditCard, label: 'Credit limit for bookings' },
-            { icon: Award, label: 'Priority customer support' },
-            { icon: Building2, label: 'Dedicated account manager (Gold+)' },
-          ].map(b => (
-            <div key={b.label} className="flex items-center gap-2 text-slate-600">
-              <b.icon className="w-4 h-4 text-brand-primary flex-shrink-0" />
-              {b.label}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

@@ -130,7 +130,9 @@ export default function CarRentalDetails() {
     });
   };
 
-  // Price calculations
+  // Price calculations — daily rate × rental days. (Weekly/Monthly rates that
+  // admins can configure aren't surfaced here because the booking flow charges
+  // per day; the selector was removed for that reason.)
   const dailyRate = car ? getDailyRate(car) : undefined;
   const perDay = dailyRate?.amountCents ?? 0;
   const baseSubtotal = perDay * rentalDays;

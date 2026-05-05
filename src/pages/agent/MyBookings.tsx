@@ -58,10 +58,12 @@ function BookingRow({
   booking,
   onCancel,
   onDownload,
+  onDownloadVoucher,
 }: {
   booking: Booking;
   onCancel: (id: string) => Promise<void>;
   onDownload: (id: string, ref: string) => Promise<void>;
+  onDownloadVoucher: (id: string, ref: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const s = STATUS_STYLES[booking.status] ?? STATUS_STYLES.PENDING;
@@ -127,6 +129,13 @@ function BookingRow({
               title="Download Invoice"
             >
               <Download className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onDownloadVoucher(booking.id, booking.reference)}
+              className="p-1.5 text-slate-400 hover:text-brand-primary hover:bg-brand-primary/5 rounded-lg transition-colors"
+              title="Download Voucher"
+            >
+              <FileText className="w-4 h-4" />
             </button>
             {booking.status === 'PENDING' && (
               <button
@@ -357,6 +366,20 @@ export default function MyBookings() {
     }
   };
 
+  const handleDownloadVoucher = async (id: string, ref: string) => {
+    try {
+      const res = await apiClient.get(`/bookings/${id}/voucher`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `voucher-${ref}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Voucher not available yet. Please contact support.');
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       {/* Header */}
@@ -453,6 +476,7 @@ export default function MyBookings() {
                       booking={booking}
                       onCancel={handleCancel}
                       onDownload={handleDownloadInvoice}
+                      onDownloadVoucher={handleDownloadVoucher}
                     />
                   </React.Fragment>
                 ))}

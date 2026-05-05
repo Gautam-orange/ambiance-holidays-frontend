@@ -215,14 +215,14 @@ export default function CarRental() {
                           </div>
                         </div>
                       </div>
-                      <div className="pt-6 border-t border-slate-50 flex items-center justify-between">
+                      <div className="pt-6 border-t border-slate-50 flex flex-col gap-3">
                         <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Per Day</p>
-                          <p className="text-xl font-display font-bold text-brand-primary">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Per Day</p>
+                          <p className="text-xl font-display font-bold text-brand-primary whitespace-nowrap">
                             {displayPrice != null ? formatPrice(displayPrice) : 'POA'}
                           </p>
                           {markupPct > 0 && daily && (
-                            <p className="text-[10px] text-slate-400 line-through">{formatPrice(daily.amountCents)}</p>
+                            <p className="text-[10px] text-slate-400 line-through whitespace-nowrap">{formatPrice(daily.amountCents)}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -241,11 +241,11 @@ export default function CarRental() {
                             return (
                               <>
                                 <Link to={href}
-                                  className="px-4 py-3 rounded-2xl text-xs font-bold border border-slate-200 text-slate-600 hover:text-brand-primary hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all">
+                                  className="flex-1 text-center px-3 py-2.5 rounded-2xl text-xs font-bold border border-slate-200 text-slate-600 hover:text-brand-primary hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all whitespace-nowrap">
                                   View Details
                                 </Link>
-                                <Link to={href}>
-                                  <button className="bg-brand-primary text-white px-6 py-3 rounded-2xl text-xs font-bold hover:scale-[1.02] transform transition-transform shadow-lg shadow-brand-primary/20">
+                                <Link to={href} className="flex-1">
+                                  <button className="w-full bg-brand-primary text-white px-3 py-2.5 rounded-2xl text-xs font-bold hover:scale-[1.02] transform transition-transform shadow-lg shadow-brand-primary/20 whitespace-nowrap">
                                     Book Now
                                   </button>
                                 </Link>

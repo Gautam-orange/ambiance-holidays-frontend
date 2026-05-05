@@ -104,6 +104,10 @@ export default function AgentDetail() {
         <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
           <div><p className="text-xs text-slate-400 uppercase tracking-wider">Contact Person</p><p className="font-medium text-slate-700">{agent.firstName} {agent.lastName}</p></div>
           <div><p className="text-xs text-slate-400 uppercase tracking-wider">Phone</p><p className="font-medium text-slate-700">{agent.phone ?? '—'}</p></div>
+          <div><p className="text-xs text-slate-400 uppercase tracking-wider">WhatsApp</p><p className="font-medium text-slate-700">{agent.whatsapp ?? '—'}</p></div>
+          <div><p className="text-xs text-slate-400 uppercase tracking-wider">Business Type</p><p className="font-medium text-slate-700">{agent.businessType ? agent.businessType.replaceAll('_', ' ') : '—'}</p></div>
+          <div><p className="text-xs text-slate-400 uppercase tracking-wider">Country / City</p><p className="font-medium text-slate-700">{agent.country}{agent.city ? `, ${agent.city}` : ''}</p></div>
+          <div className="col-span-2"><p className="text-xs text-slate-400 uppercase tracking-wider">Address</p><p className="font-medium text-slate-700">{(agent as any).address ?? '—'}</p></div>
           <div><p className="text-xs text-slate-400 uppercase tracking-wider">Total Bookings</p><p className="font-bold text-slate-800">{agent.totalBookings}</p></div>
           <div><p className="text-xs text-slate-400 uppercase tracking-wider">Approved At</p><p className="font-medium text-slate-700">{agent.approvedAt ? new Date(agent.approvedAt).toLocaleDateString() : '—'}</p></div>
           <div><p className="text-xs text-slate-400 uppercase tracking-wider">Registered</p><p className="font-medium text-slate-700">{new Date(agent.createdAt).toLocaleDateString()}</p></div>

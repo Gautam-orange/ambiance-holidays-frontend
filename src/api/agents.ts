@@ -5,6 +5,7 @@ export interface Agent {
   companyName: string;
   country: string;
   city: string | null;
+  address: string | null;
   businessType: string;
   tier: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
   status: 'PENDING' | 'ACTIVE' | 'SUSPENDED';
@@ -18,6 +19,7 @@ export interface Agent {
   firstName: string;
   lastName: string;
   phone: string | null;
+  whatsapp: string | null;
   createdAt: string;
 }
 

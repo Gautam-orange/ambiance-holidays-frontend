@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { User, Mail, Building, Globe, MapPin, Lock, ChevronRight, CheckCircle, AlertCircle, Check, X } from 'lucide-react';
+import { User, Mail, Building, Globe, MapPin, Lock, ChevronRight, CheckCircle, AlertCircle, Check, X, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import authApi, { SignupRequest } from '../../api/auth';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -35,6 +35,7 @@ export default function AgentRegister() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const [showPwHint, setShowPwHint] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const set = (field: keyof SignupRequest) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(prev => ({ ...prev, [field]: e.target.value }));
@@ -42,6 +43,23 @@ export default function AgentRegister() {
   const password = form.password ?? '';
   const passwordChecks = useMemo(() => PASSWORD_RULES.map(r => ({ ...r, ok: r.test(password) })), [password]);
   const passwordValid = passwordChecks.every(c => c.ok);
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
+
+  /**
+   * Mauritius mobile validation. Local format is 8 digits starting with 5
+   * (e.g. 5712 3456). International form starts with 230 and is followed by
+   * the same 5XXXXXXX pattern. We accept both — any non-digit is stripped
+   * before validation, so spaces/dashes/parens are fine.
+   */
+  const phoneDigits = (v: string | undefined) => (v ?? '').replace(/\D/g, '');
+  const phoneOk = (v: string | undefined) => {
+    const d = phoneDigits(v);
+    // Accept "+230 5XXX XXXX" (11 digits, leading 230 + 5XXXXXXX) or local
+    // "5XXX XXXX" (8 digits, leading 5).
+    if (d.length === 11 && d.startsWith('230') && d[3] === '5') return true;
+    if (d.length === 8 && d.startsWith('5')) return true;
+    return false;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +67,14 @@ export default function AgentRegister() {
     if (!passwordValid) {
       setError('Password does not meet all requirements. See the checklist below the password field.');
       setShowPwHint(true);
+      return;
+    }
+    if (!passwordsMatch) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (!phoneOk(form.phone)) {
+      setError('Mobile number must be a valid Mauritius number (e.g. +230 5712 3456).');
       return;
     }
     setIsLoading(true);
@@ -196,6 +222,28 @@ export default function AgentRegister() {
               </div>
 
               <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Confirm Password *</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="password"
+                    placeholder="Re-enter password"
+                    required
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    className={`w-full pl-12 pr-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 text-sm font-medium ${
+                      confirmPassword && !passwordsMatch
+                        ? 'border-red-300 focus:ring-red-200'
+                        : 'border-slate-200 focus:ring-brand-primary/20'
+                    }`}
+                  />
+                </div>
+                {confirmPassword && !passwordsMatch && (
+                  <p className="text-[11px] text-red-500 mt-1">Passwords do not match.</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Company Name *</label>
                 <div className="relative">
                   <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -223,6 +271,43 @@ export default function AgentRegister() {
                     ))}
                   </select>
                   <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Mobile Number *</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="+230 5712 3456"
+                    required
+                    value={form.phone ?? ''}
+                    onChange={set('phone')}
+                    className={`w-full pl-12 pr-4 py-3 bg-white border rounded-xl outline-none focus:ring-2 text-sm font-medium ${
+                      form.phone && !phoneOk(form.phone)
+                        ? 'border-red-300 focus:ring-red-200'
+                        : 'border-slate-200 focus:ring-brand-primary/20'
+                    }`}
+                  />
+                </div>
+                {form.phone && !phoneOk(form.phone) && (
+                  <p className="text-[11px] text-red-500 mt-1">Enter a Mauritius mobile (8 digits starting with 5, or +230 5XXXXXXX).</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">City</label>
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Port Louis"
+                    value={form.city ?? ''}
+                    onChange={set('city')}
+                    className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium"
+                  />
                 </div>
               </div>
 

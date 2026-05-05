@@ -24,6 +24,11 @@ export interface AgentInfo {
   companyName: string;
   tier: string;
   status: string;
+  country?: string;
+  city?: string;
+  address?: string;
+  businessType?: 'TRAVEL_AGENCY' | 'FREELANCER' | 'CORPORATE';
+  phone?: string;
 }
 
 export interface UserInfo {
