@@ -18,7 +18,7 @@ const STATUS_STYLES: Record<string, { icon: React.ElementType; cls: string; labe
 
 const ITEM_LABELS: Record<string, string> = {
   CAR_RENTAL: 'Car Rental', CAR_TRANSFER: 'Transfer',
-  TOUR: 'Tour', DAY_TRIP: 'Day Trip', HOTEL: 'Hotel',
+  TOUR: 'Tour', DAY_TRIP: 'Local Experience', HOTEL: 'Hotel',
 };
 
 // ─── Normalise any backend response shape into a flat bookings array ─────────

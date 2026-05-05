@@ -1,16 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Check, X, Shield, Users, Globe, RefreshCw, Percent, ExternalLink, RotateCcw, Eye, Download } from 'lucide-react';
+import { Search, Check, X, Shield, Users, Globe, RefreshCw, ExternalLink, RotateCcw, Eye, Download } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'motion/react';
-import { listAgents, approveAgent, suspendAgent, rejectAgent, reactivateAgent, updateAgent, getDashboardStats, type Agent } from '../../api/agents';
-
-const TIER_COLORS: Record<string, string> = {
-  PLATINUM: 'bg-indigo-50 text-indigo-600',
-  GOLD: 'bg-amber-50 text-amber-600',
-  SILVER: 'bg-slate-100 text-slate-600',
-  BRONZE: 'bg-orange-50 text-orange-600',
-};
+import { listAgents, approveAgent, suspendAgent, rejectAgent, reactivateAgent, getDashboardStats, type Agent } from '../../api/agents';
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'text-green-600',
@@ -19,7 +12,6 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 type RejectModal = { agentId: string; companyName: string } | null;
-type CommissionModal = { agent: Agent } | null;
 
 export default function AgentManagement() {
   const navigate = useNavigate();
@@ -32,8 +24,6 @@ export default function AgentManagement() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState<RejectModal>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [commissionModal, setCommissionModal] = useState<CommissionModal>(null);
-  const [commissionValue, setCommissionValue] = useState('');
 
   const fetchAgents = useCallback(async () => {
     setLoading(true);
@@ -113,20 +103,6 @@ export default function AgentManagement() {
     }
   };
 
-  const handleSaveCommission = async () => {
-    if (!commissionModal) return;
-    const val = parseFloat(commissionValue);
-    if (isNaN(val) || val < 0 || val > 100) return;
-    setActionLoading(commissionModal.agent.id + '_commission');
-    try {
-      const updated = await updateAgent(commissionModal.agent.id, { commissionRate: val });
-      setAgents(prev => prev.map(a => a.id === commissionModal.agent.id ? updated : a));
-      setCommissionModal(null);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   return (
     <>
     {/* Reject modal */}
@@ -145,32 +121,6 @@ export default function AgentManagement() {
             <button onClick={handleReject} disabled={!rejectReason.trim() || !!actionLoading}
               className="flex-1 bg-red-600 text-white py-2.5 rounded-xl font-bold hover:bg-red-700 disabled:opacity-50">
               Reject
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* Override commission modal */}
-    {commissionModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm mx-4 space-y-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-800">Override Commission</h3>
-            <button onClick={() => setCommissionModal(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5 text-slate-400" /></button>
-          </div>
-          <p className="text-sm text-slate-600">{commissionModal.agent.companyName} — current: {commissionModal.agent.commissionRate}%</p>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">New Commission Rate (%)</label>
-            <input type="number" min="0" max="100" step="0.5" value={commissionValue}
-              onChange={e => setCommissionValue(e.target.value)} placeholder={String(commissionModal.agent.commissionRate)}
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
-          </div>
-          <div className="flex gap-3">
-            <button onClick={() => setCommissionModal(null)} className="flex-1 border border-slate-200 text-slate-700 py-2.5 rounded-xl font-medium hover:bg-slate-50">Cancel</button>
-            <button onClick={handleSaveCommission} disabled={!!actionLoading}
-              className="flex-1 bg-brand-primary text-white py-2.5 rounded-xl font-bold disabled:opacity-50">
-              Save
             </button>
           </div>
         </div>
@@ -196,8 +146,8 @@ export default function AgentManagement() {
           </select>
           <button
             onClick={() => {
-              const rows = [['Company','Email','Country','Tier','Markup %','Commission %','Bookings','Status']];
-              agents.forEach(a => rows.push([a.companyName,a.email,a.country,a.tier,String(a.markupPercent),String(a.commissionRate),String(a.totalBookings),a.status]));
+              const rows = [['Company','Email','Country','Bookings','Status']];
+              agents.forEach(a => rows.push([a.companyName,a.email,a.country,String(a.totalBookings),a.status]));
               const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
               const el = document.createElement('a'); el.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
               el.download = `agents-${new Date().toISOString().split('T')[0]}.csv`; el.click();
@@ -264,8 +214,6 @@ export default function AgentManagement() {
               <thead>
                 <tr className="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                   <th className="px-6 py-4">Agency Details</th>
-                  <th className="px-6 py-4">Tier</th>
-                  <th className="px-6 py-4">Markup / Commission</th>
                   <th className="px-6 py-4">Total Bookings</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -285,15 +233,6 @@ export default function AgentManagement() {
                           <p className="text-xs text-slate-400">{agent.country}{agent.city ? `, ${agent.city}` : ''}</p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={cn('px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider',
-                        TIER_COLORS[agent.tier] ?? 'bg-slate-50 text-slate-600')}>
-                        {agent.tier}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      <span className="font-mono">{agent.markupPercent}%</span> / <span className="font-mono">{agent.commissionRate}%</span>
                     </td>
                     <td className="px-6 py-4 font-mono font-bold text-slate-700">{agent.totalBookings}</td>
                     <td className="px-6 py-4">
@@ -317,11 +256,6 @@ export default function AgentManagement() {
                             <ExternalLink className="w-4 h-4" />
                           </a>
                         )}
-                        {/* Override commission */}
-                        <button onClick={() => { setCommissionModal({ agent }); setCommissionValue(String(agent.commissionRate)); }}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Override Commission">
-                          <Percent className="w-4 h-4" />
-                        </button>
                         {/* Approve (PENDING) */}
                         {agent.status === 'PENDING' && (
                           <button onClick={() => handleApprove(agent.id)} disabled={actionLoading === agent.id + '_approve'}

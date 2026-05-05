@@ -16,7 +16,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 const ITEM_TYPE_LABELS: Record<string, string> = {
   CAR_RENTAL: 'Car Rental', CAR_TRANSFER: 'Transfer',
-  TOUR: 'Tour', DAY_TRIP: 'Day Trip', HOTEL: 'Hotel',
+  TOUR: 'Tour', DAY_TRIP: 'Local Experience', HOTEL: 'Hotel',
 };
 
 // ─── Cancel modal ─────────────────────────────────────────────────────────────

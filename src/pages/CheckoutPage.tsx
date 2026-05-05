@@ -45,17 +45,29 @@ export default function CheckoutPage() {
     specialRequests: '',
   });
 
-  // Pre-populate from logged-in user
+  /** Per-user localStorage key so two agents on the same machine don't see each other's draft. */
+  const lastBookingKey = user?.id ? `lastCheckoutForm:${user.id}` : null;
+
+  // Pre-populate from logged-in user + last successful booking (per user).
   useEffect(() => {
-    if (user) {
-      setForm(f => ({
-        ...f,
-        customerFirstName: f.customerFirstName || user.firstName || '',
-        customerLastName: f.customerLastName || user.lastName || '',
-        customerEmail: f.customerEmail || user.email || '',
-      }));
+    if (!user) return;
+    let cached: Partial<typeof form> | null = null;
+    if (lastBookingKey) {
+      try { const raw = localStorage.getItem(lastBookingKey); if (raw) cached = JSON.parse(raw); } catch { /* ignore */ }
     }
-  }, [user]);
+    setForm(f => ({
+      ...f,
+      customerFirstName: f.customerFirstName || cached?.customerFirstName || user.firstName || '',
+      customerLastName:  f.customerLastName  || cached?.customerLastName  || user.lastName  || '',
+      customerEmail:     f.customerEmail     || cached?.customerEmail     || user.email     || '',
+      phoneCountryCode:  cached?.phoneCountryCode  ?? f.phoneCountryCode,
+      phoneNumber:       f.phoneNumber       || cached?.phoneNumber       || '',
+      whatsappCountryCode: cached?.whatsappCountryCode ?? f.whatsappCountryCode,
+      whatsappNumber:    f.whatsappNumber    || cached?.whatsappNumber    || '',
+      nationality:       cached?.nationality ?? f.nationality,
+      address:           f.address           || cached?.address           || '',
+    }));
+  }, [user, lastBookingKey]);
 
   useEffect(() => {
     getCart()
@@ -70,19 +82,33 @@ export default function CheckoutPage() {
   const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setTouched(t => ({ ...t, [e.target.name]: true }));
 
+  /** Validate a phone number after stripping non-digits. Returns digits or null. */
+  const phoneDigits = (v: string) => v.replace(/\D/g, '');
+
   // Validation rules. Returns null when valid, error message when not.
   const validators: Record<string, (v: string) => string | null> = {
     customerFirstName: v => (!v.trim() ? 'First name is required' : v.length > 100 ? 'Too long' : null),
     customerLastName:  v => (!v.trim() ? 'Last name is required'  : v.length > 100 ? 'Too long' : null),
     customerEmail:     v => (!v.trim() ? 'Email is required' :
                               !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Invalid email' : null),
-    phoneNumber:       v => (v.trim() && !/^[0-9 \-()]{6,20}$/.test(v) ? 'Digits only, 6–20 chars' : null),
-    whatsappNumber:    v => (!v.trim() ? 'WhatsApp number is required' :
-                              !/^[0-9 \-()]{6,20}$/.test(v) ? 'Digits only, 6–20 chars' : null),
+    phoneNumber:       v => {
+                          if (!v.trim()) return null; // optional
+                          if (!/^[0-9 \-()]+$/.test(v)) return 'Only digits, spaces, hyphens, parens';
+                          const d = phoneDigits(v);
+                          if (d.length < 7) return 'Phone number too short (min 7 digits)';
+                          if (d.length > 15) return 'Phone number too long (max 15 digits)';
+                          return null;
+                        },
+    whatsappNumber:    v => {
+                          if (!v.trim()) return 'WhatsApp number is required';
+                          if (!/^[0-9 \-()]+$/.test(v)) return 'Only digits, spaces, hyphens, parens';
+                          const d = phoneDigits(v);
+                          if (d.length < 7) return 'WhatsApp number too short (min 7 digits)';
+                          if (d.length > 15) return 'WhatsApp number too long (max 15 digits)';
+                          return null;
+                        },
     nationality:       v => (!v.trim() ? 'Nationality is required' : null),
     address:           v => (!v.trim() ? 'Address is required' : null),
-    serviceDate:       v => (!v ? 'Service date is required' :
-                              new Date(v) < new Date(new Date().toDateString()) ? 'Date is in the past' : null),
   };
 
   const fieldError = (name: string): string | null => {
@@ -106,6 +132,35 @@ export default function CheckoutPage() {
     setError('');
     setSubmitting(true);
     try {
+      // Derive serviceDate from the earliest item date in the cart (each item already
+      // carries its own pickupDate/date/serviceDate). Fall back to today.
+      const today = new Date().toISOString().split('T')[0];
+      const itemDates = (cart?.items ?? [])
+        .map(i => {
+          const o = (i.options ?? {}) as Record<string, unknown>;
+          const d = (o.pickupDate ?? o.date ?? o.serviceDate);
+          return typeof d === 'string' ? d : '';
+        })
+        .filter(Boolean) as string[];
+      const derivedServiceDate = itemDates.length > 0 ? itemDates.sort()[0] : today;
+
+      // Persist customer info so the next booking pre-populates these fields.
+      if (lastBookingKey) {
+        try {
+          localStorage.setItem(lastBookingKey, JSON.stringify({
+            customerFirstName: form.customerFirstName.trim(),
+            customerLastName: form.customerLastName.trim(),
+            customerEmail: form.customerEmail.trim(),
+            phoneCountryCode: form.phoneCountryCode,
+            phoneNumber: form.phoneNumber.trim(),
+            whatsappCountryCode: form.whatsappCountryCode,
+            whatsappNumber: form.whatsappNumber.trim(),
+            nationality: form.nationality,
+            address: form.address.trim(),
+          }));
+        } catch { /* quota or disabled — ignore */ }
+      }
+
       const init = await initiatePeachCheckout({
         customerFirstName: form.customerFirstName.trim(),
         customerLastName: form.customerLastName.trim(),
@@ -116,7 +171,7 @@ export default function CheckoutPage() {
         whatsappNumber: `${form.whatsappCountryCode} ${form.whatsappNumber.trim()}`,
         nationality: form.nationality,
         address: form.address.trim(),
-        serviceDate: form.serviceDate,
+        serviceDate: derivedServiceDate,
         specialRequests: form.specialRequests.trim() || undefined,
       }, currency);
       window.location.href = init.redirectUrl;
@@ -280,16 +335,6 @@ export default function CheckoutPage() {
               <FileText className="w-4 h-4 text-slate-400" /> Service Details
             </h2>
             <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Service Date *</label>
-                <input name="serviceDate" type="date" value={form.serviceDate} onChange={handleChange} onBlur={handleBlur}
-                  required min={new Date().toISOString().split('T')[0]}
-                  className={inputCls('serviceDate')} />
-                <ErrText name="serviceDate" />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Earliest service date for items in your cart. Per-item dates collected at add-to-cart still apply.
-                </p>
-              </div>
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Special Requests</label>
                 <textarea name="specialRequests" value={form.specialRequests} onChange={handleChange} rows={3}

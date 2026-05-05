@@ -126,8 +126,11 @@ export default function Tours() {
         </div>
       </div>
 
-      {/* Content — tours LEFT, filters RIGHT */}
+      {/* Content — filters LEFT, tours RIGHT */}
       <div className="max-w-7xl mx-auto px-8 py-16 grid grid-cols-1 lg:grid-cols-4 gap-12">
+        {/* Filters — LEFT */}
+        <div>{FilterPanel}</div>
+
         {/* Tours grid — 3 cols */}
         <div className="lg:col-span-3 space-y-8">
           <p className="text-sm text-slate-500">{filteredTours.length} tour{filteredTours.length !== 1 ? 's' : ''} found</p>
@@ -195,8 +198,6 @@ export default function Tours() {
           )}
         </div>
 
-        {/* Filters — RIGHT */}
-        <div>{FilterPanel}</div>
       </div>
     </div>
   );

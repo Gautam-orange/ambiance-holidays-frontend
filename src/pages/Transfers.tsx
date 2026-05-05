@@ -15,8 +15,6 @@ const TRIP_TYPES: { key: TripType; label: string }[] = [
   { key: 'ROUND_TRIP',     label: 'Round Trip' },
   { key: 'ARRIVAL',        label: 'Arrival' },
   { key: 'DEPARTURE',      label: 'Departure' },
-  { key: 'HOURLY',         label: 'Hourly' },
-  { key: 'POINT_TO_POINT', label: 'Point to Point' },
   { key: 'MULTI_TRIP',     label: 'Multi-Trip' },
 ];
 
@@ -91,6 +89,13 @@ export default function Transfers() {
   const [cars,          setCars]          = useState<Car[]>([]);
   const [carsLoading,   setCarsLoading]   = useState(true);
   const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
+
+  // Vehicle filters (Step 2 sidebar)
+  const [filterCategories, setFilterCategories] = useState<Set<string>>(new Set());
+  const [filterMinPax,     setFilterMinPax]     = useState<number | null>(null);
+  const [filterMinLuggage, setFilterMinLuggage] = useState<number | null>(null);
+  const [filterAcOnly,     setFilterAcOnly]     = useState(false);
+  const [filterAutoOnly,   setFilterAutoOnly]   = useState(false);
 
   // Cart
   const [adding, setAdding] = useState(false);
@@ -526,20 +531,101 @@ export default function Transfers() {
           </p>
         </div>
 
+        {(() => {
+          const filteredCars = cars.filter(c => {
+            if (filterCategories.size > 0 && !filterCategories.has(c.category)) return false;
+            if (filterMinPax != null && c.passengerCapacity < filterMinPax) return false;
+            if (filterMinLuggage != null && (c.luggageCapacity ?? 0) < filterMinLuggage) return false;
+            if (filterAcOnly && !c.hasAc) return false;
+            if (filterAutoOnly && !c.automatic) return false;
+            return true;
+          });
+          const toggleCategory = (cat: string) => setFilterCategories(prev => {
+            const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n;
+          });
+          const clearFilters = () => {
+            setFilterCategories(new Set());
+            setFilterMinPax(null);
+            setFilterMinLuggage(null);
+            setFilterAcOnly(false);
+            setFilterAutoOnly(false);
+          };
+          const FilterPanel = (
+            <div className="space-y-8 lg:sticky lg:top-28 h-fit bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h3 className="font-bold text-brand-primary">Filters</h3>
+                <button onClick={clearFilters} className="text-[10px] font-bold uppercase tracking-widest text-brand-primary underline underline-offset-4">
+                  Clear
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Category</h4>
+                {Object.entries(CATEGORY_LABEL).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                    <input type="checkbox" className="accent-brand-primary w-4 h-4"
+                      checked={filterCategories.has(key)} onChange={() => toggleCategory(key)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Min Passengers</h4>
+                {[null, 2, 4, 6, 8].map(n => (
+                  <label key={n ?? 'any'} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                    <input type="radio" name="tx-min-pax" className="accent-brand-primary w-4 h-4"
+                      checked={filterMinPax === n} onChange={() => setFilterMinPax(n)} />
+                    {n == null ? 'Any' : `${n}+`}
+                  </label>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Min Luggage</h4>
+                {[null, 2, 4, 6].map(n => (
+                  <label key={n ?? 'any'} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                    <input type="radio" name="tx-min-lug" className="accent-brand-primary w-4 h-4"
+                      checked={filterMinLuggage === n} onChange={() => setFilterMinLuggage(n)} />
+                    {n == null ? 'Any' : `${n}+ bags`}
+                  </label>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Features</h4>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                  <input type="checkbox" className="accent-brand-primary w-4 h-4"
+                    checked={filterAcOnly} onChange={() => setFilterAcOnly(v => !v)} />
+                  Air Conditioning
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+                  <input type="checkbox" className="accent-brand-primary w-4 h-4"
+                    checked={filterAutoOnly} onChange={() => setFilterAutoOnly(v => !v)} />
+                  Automatic
+                </label>
+              </div>
+            </div>
+          );
+
+          return (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div>{FilterPanel}</div>
+          <div className="lg:col-span-3">
         {carsLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {[1, 2, 3].map(i => (
               <div key={i} className="bg-white rounded-2xl h-56 animate-pulse border border-slate-100" />
             ))}
           </div>
-        ) : cars.length === 0 ? (
+        ) : filteredCars.length === 0 ? (
           <div className="text-center py-16 text-slate-400">
-            <p className="text-lg font-semibold">No vehicles found</p>
-            <p className="text-sm mt-1">Please contact us to arrange a transfer.</p>
+            <p className="text-lg font-semibold">No vehicles match your filters</p>
+            <button onClick={clearFilters} className="mt-3 text-brand-primary underline text-sm font-medium">Clear filters</button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {cars.map(car => {
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {filteredCars.map(car => {
               const isSelected = selectedCarId === car.id;
               const carPrice = quote?.found ? quoteCarFromBands(car, quote.distanceKm) : null;
               const matchingBand = car.rates.find(r => {
@@ -655,6 +741,10 @@ export default function Transfers() {
             })}
           </div>
         )}
+          </div>
+        </div>
+          );
+        })()}
 
         {/* Includes */}
         <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-4">

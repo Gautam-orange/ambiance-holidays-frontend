@@ -99,8 +99,8 @@ export default function App() {
           <Route path="newsletter" element={<AdminNewsletterPage />} />
         </Route>
 
-        {/* Public Site Routes (also hosts /agent/* so the top menu stays visible) */}
-        <Route path="/" element={<HomeLayout />}>
+        {/* Site Routes — require any logged-in user */}
+        <Route path="/" element={<ProtectedRoute><HomeLayout /></ProtectedRoute>}>
           <Route index element={<Home />} />
           <Route path="car-rental" element={<CarRental />} />
           <Route path="car-rental/:id" element={<CarRentalDetails />} />

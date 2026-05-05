@@ -22,7 +22,7 @@ const ITEM_TYPE_LABEL: Record<string, string> = {
   CAR_RENTAL: 'Car Rental',
   CAR_TRANSFER: 'Transfer',
   TOUR: 'Tour',
-  DAY_TRIP: 'Day Trip',
+  DAY_TRIP: 'Local Experience',
   HOTEL: 'Hotel',
 };
 

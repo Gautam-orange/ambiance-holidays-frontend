@@ -62,7 +62,7 @@ export default function EditDayTrip() {
         })));
         setHighlights((t.highlights ?? []).map((h: any) => h.text ?? h).concat(['']));
       })
-      .catch(() => setError('Failed to load day trip'))
+      .catch(() => setError('Failed to load local experience'))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -98,7 +98,7 @@ export default function EditDayTrip() {
         body: JSON.stringify(payload),
       });
       if (res.ok) navigate('/admin/day-trips');
-      else setError('Failed to save day trip');
+      else setError('Failed to save local experience');
     } finally {
       setSaving(false);
     }
@@ -130,7 +130,7 @@ export default function EditDayTrip() {
     <div className="max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate('/admin/day-trips')} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft className="w-5 h-5 text-gray-500" /></button>
-        <h1 className="text-2xl font-bold text-gray-900">Edit Day Trip</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Edit Local Experience</h1>
       </div>
 
       {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
@@ -214,7 +214,7 @@ export default function EditDayTrip() {
         <div className="flex gap-3">
           <button type="button" onClick={() => navigate('/admin/day-trips')} className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors">Cancel</button>
           <button type="submit" disabled={saving} className="flex-1 bg-brand-primary text-white py-3 rounded-xl font-semibold hover:bg-brand-primary/90 disabled:opacity-50 transition-colors">
-            {saving ? 'Saving…' : 'Save Day Trip'}
+            {saving ? 'Saving…' : 'Save Local Experience'}
           </button>
         </div>
       </form>

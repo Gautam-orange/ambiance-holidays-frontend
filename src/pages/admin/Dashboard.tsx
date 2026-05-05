@@ -10,7 +10,7 @@ interface DashboardData {
   bookings: { total: number; pending: number; confirmed: number; cancelled: number };
   revenue: { total: number; thisMonth: number };
   agents: { total: number; pending: number; active: number };
-  assets: { activeCars: number; activeTours: number };
+  assets: { activeCars: number; activeTours: number; activeDayTrips: number };
 }
 
 export default function Dashboard() {
@@ -69,6 +69,14 @@ export default function Dashboard() {
       icon: Palmtree,
       metrics: [
         { label: 'Active Tours', value: d.assets.activeTours },
+      ],
+    },
+    {
+      title: 'Local Experiences',
+      link: '/admin/day-trips',
+      icon: Palmtree,
+      metrics: [
+        { label: 'Active Local Experiences', value: d.assets.activeDayTrips },
       ],
     },
     {

@@ -126,7 +126,7 @@ export default function CarManagement() {
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
-                {['Reg. No', 'Vehicle', 'Category', 'Year', 'Pax', 'Usage Type', 'Per Day', 'Transfer/KM', 'Active', 'Actions'].map(h => (
+                {['Reg. No', 'Vehicle', 'Category', 'Year', 'Pax', 'Bags', 'Usage Type', 'Per Day', 'Transfer/KM', 'Active', 'Actions'].map(h => (
                   <th key={h} className="px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -135,14 +135,14 @@ export default function CarManagement() {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    {Array.from({ length: 10 }).map((_, j) => (
+                    {Array.from({ length: 11 }).map((_, j) => (
                       <td key={j} className="px-5 py-4"><div className="h-4 bg-slate-100 rounded w-full" /></td>
                     ))}
                   </tr>
                 ))
               ) : cars.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-16 text-slate-400 font-medium">
+                  <td colSpan={11} className="text-center py-16 text-slate-400 font-medium">
                     No cars found. <Link to="/admin/cars/add" className="text-brand-primary underline">Add your first car.</Link>
                   </td>
                 </tr>
@@ -169,6 +169,7 @@ export default function CarManagement() {
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-500 font-mono">{car.year}</td>
                       <td className="px-5 py-4 text-sm font-bold text-slate-700">{car.passengerCapacity}</td>
+                      <td className="px-5 py-4 text-sm font-bold text-slate-700">{car.luggageCapacity ?? '—'}</td>
                       <td className="px-5 py-4 text-sm text-slate-600">
                         <span className="px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider bg-slate-50 border-slate-200">
                           {car.usageType}

@@ -66,5 +66,5 @@ export const getDashboardStats = () =>
     bookings: { total: number; pending: number; confirmed: number; cancelled: number };
     revenue: { total: number; thisMonth: number };
     agents: { total: number; pending: number; active: number };
-    assets: { activeCars: number; activeTours: number };
+    assets: { activeCars: number; activeTours: number; activeDayTrips: number };
   });

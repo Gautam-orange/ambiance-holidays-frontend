@@ -50,7 +50,7 @@ export default function DayTrips() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Day Trips</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">Local Experiences</h1>
       <p className="text-gray-500 mb-8">Explore Mauritius on a guided day excursion</p>
 
       <div className="flex gap-8">
@@ -107,7 +107,7 @@ export default function DayTrips() {
             </div>
           ) : trips.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-gray-400 text-lg mb-4">No day trips match your filters</p>
+              <p className="text-gray-400 text-lg mb-4">No local experiences match your filters</p>
               <button onClick={() => setParams(new URLSearchParams())} className="text-brand-primary font-medium hover:underline">
                 Clear all filters
               </button>

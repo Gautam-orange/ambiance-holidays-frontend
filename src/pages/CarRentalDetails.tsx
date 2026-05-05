@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'reac
 import {
   Users, Fuel, Calendar, ChevronRight, ShieldCheck,
   Headphones, Navigation, ArrowLeft, Minus, Plus,
-  ShoppingCart, Check, Settings2, TrendingUp, ChevronLeft, Clock, LogIn, Star
+  ShoppingCart, Check, Settings2, TrendingUp, ChevronLeft, Clock, LogIn, Star, Briefcase
 } from 'lucide-react';
 import carsApi, { Car, getDailyRate } from '../api/cars';
 import { addToCart, formatMoney } from '../api/bookings';
@@ -49,11 +49,19 @@ export default function CarRentalDetails() {
   const [car, setCar] = useState<Car | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [rentalDays, setRentalDays] = useState(1);
+  const [rentalDays, setRentalDays] = useState(() => {
+    const a = searchParams.get('date');
+    const b = searchParams.get('dropoffDate');
+    if (a && b) {
+      const ms = new Date(b + 'T00:00').getTime() - new Date(a + 'T00:00').getTime();
+      return Math.max(1, Math.round(ms / 86_400_000));
+    }
+    return 1;
+  });
   const [pickupDate, setPickupDate] = useState(() => searchParams.get('date') ?? '');
   const [pickupTime, setPickupTime] = useState(() => searchParams.get('time') ?? '');
-  const [dropoffDate, setDropoffDate] = useState('');
-  const [dropoffTime, setDropoffTime] = useState('');
+  const [dropoffDate, setDropoffDate] = useState(() => searchParams.get('dropoffDate') ?? '');
+  const [dropoffTime, setDropoffTime] = useState(() => searchParams.get('dropoffTime') ?? '');
   const [adults, setAdults] = useState(() => Number(searchParams.get('adults') ?? 2));
   const [pickupLocation, setPickupLocation] = useState(() => searchParams.get('pickup') ?? '');
   const [dropoffLocation, setDropoffLocation] = useState(() => searchParams.get('dropoff') ?? '');
@@ -240,6 +248,9 @@ export default function CarRentalDetails() {
             <h1 className="text-4xl font-display font-bold text-brand-primary">{car.name}</h1>
             <div className="flex flex-wrap items-center gap-6 mt-3 text-slate-500 text-sm">
               <span className="flex items-center gap-2"><Users className="w-4 h-4" />{car.passengerCapacity} Passengers</span>
+              {car.luggageCapacity != null && (
+                <span className="flex items-center gap-2"><Briefcase className="w-4 h-4" />{car.luggageCapacity} Bags</span>
+              )}
               <span className="flex items-center gap-2"><Fuel className="w-4 h-4" />{car.fuelType ?? 'Petrol'}</span>
               <span className="flex items-center gap-2"><Calendar className="w-4 h-4" />{car.year} Model</span>
               {car.color && <span className="flex items-center gap-2">🎨 {car.color}</span>}

@@ -146,8 +146,11 @@ export default function CarRental() {
       {/* Spacer to clear the overlapping search widget */}
       <div className="h-24" />
 
-      {/* Content — cars LEFT, filters RIGHT */}
+      {/* Content — filters LEFT, cars RIGHT */}
       <div className="max-w-7xl mx-auto px-8 py-16 grid grid-cols-1 lg:grid-cols-4 gap-12">
+        {/* Filters — LEFT */}
+        <div>{FilterPanel}</div>
+
         {/* Car grid — 3 cols */}
         <div className="lg:col-span-3 space-y-8">
           <div className="flex items-center justify-between">
@@ -223,15 +226,32 @@ export default function CarRental() {
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Link to={`/car-rental/${car.id}`}
-                            className="px-4 py-3 rounded-2xl text-xs font-bold border border-slate-200 text-slate-600 hover:text-brand-primary hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all">
-                            View Details
-                          </Link>
-                          <Link to={`/car-rental/${car.id}${(() => { const p = new URLSearchParams(); if (heroPickup) p.set('pickup', heroPickup); if (markup) p.set('markup', markup); const s = p.toString(); return s ? `?${s}` : ''; })()}`}>
-                            <button className="bg-brand-primary text-white px-6 py-3 rounded-2xl text-xs font-bold hover:scale-[1.02] transform transition-transform shadow-lg shadow-brand-primary/20">
-                              Book Now
-                            </button>
-                          </Link>
+                          {(() => {
+                            const p = new URLSearchParams();
+                            if (heroPickup) p.set('pickup', heroPickup);
+                            if (heroDropoff) p.set('dropoff', heroDropoff);
+                            const adultsParam = searchParams.get('adults'); if (adultsParam) p.set('adults', adultsParam);
+                            const dateParam = searchParams.get('date'); if (dateParam) p.set('date', dateParam);
+                            const timeParam = searchParams.get('time'); if (timeParam) p.set('time', timeParam);
+                            const dropoffDateParam = searchParams.get('dropoffDate'); if (dropoffDateParam) p.set('dropoffDate', dropoffDateParam);
+                            const dropoffTimeParam = searchParams.get('dropoffTime'); if (dropoffTimeParam) p.set('dropoffTime', dropoffTimeParam);
+                            if (markup) p.set('markup', markup);
+                            const qs = p.toString();
+                            const href = `/car-rental/${car.id}${qs ? `?${qs}` : ''}`;
+                            return (
+                              <>
+                                <Link to={href}
+                                  className="px-4 py-3 rounded-2xl text-xs font-bold border border-slate-200 text-slate-600 hover:text-brand-primary hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all">
+                                  View Details
+                                </Link>
+                                <Link to={href}>
+                                  <button className="bg-brand-primary text-white px-6 py-3 rounded-2xl text-xs font-bold hover:scale-[1.02] transform transition-transform shadow-lg shadow-brand-primary/20">
+                                    Book Now
+                                  </button>
+                                </Link>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -255,8 +275,6 @@ export default function CarRental() {
           )}
         </div>
 
-        {/* Filters — RIGHT */}
-        <div>{FilterPanel}</div>
       </div>
     </div>
   );

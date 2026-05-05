@@ -1,14 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, X, Shield, RotateCcw, Save } from 'lucide-react';
-import { getAgent, approveAgent, suspendAgent, rejectAgent, reactivateAgent, updateAgent, type Agent } from '../../api/agents';
-
-const TIER_COLORS: Record<string, string> = {
-  PLATINUM: 'bg-indigo-50 text-indigo-700',
-  GOLD: 'bg-amber-50 text-amber-700',
-  SILVER: 'bg-slate-100 text-slate-600',
-  BRONZE: 'bg-orange-50 text-orange-700',
-};
+import { ArrowLeft, Check, X, Shield, RotateCcw } from 'lucide-react';
+import { getAgent, approveAgent, suspendAgent, rejectAgent, reactivateAgent, type Agent } from '../../api/agents';
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-50 text-green-700',
@@ -22,39 +15,17 @@ export default function AgentDetail() {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
 
-  const [markup, setMarkup] = useState('');
-  const [commission, setCommission] = useState('');
-  const [tier, setTier] = useState('');
-  const [creditLimit, setCreditLimit] = useState('');
-
   useEffect(() => {
     if (!id) return;
     getAgent(id)
-      .then(a => {
-        setAgent(a);
-        setMarkup(String(a.markupPercent));
-        setCommission(String(a.commissionRate));
-        setTier(a.tier);
-        setCreditLimit(String(a.creditLimit));
-      })
+      .then(setAgent)
       .catch(() => setError('Failed to load agent'))
       .finally(() => setLoading(false));
   }, [id]);
-
-  const refresh = async () => {
-    if (!id) return;
-    const a = await getAgent(id);
-    setAgent(a);
-    setMarkup(String(a.markupPercent));
-    setCommission(String(a.commissionRate));
-    setTier(a.tier);
-    setCreditLimit(String(a.creditLimit));
-  };
 
   const handleApprove = async () => {
     if (!id) return;
@@ -78,24 +49,6 @@ export default function AgentDetail() {
     if (!id || !rejectReason.trim()) return;
     setActionLoading(true);
     try { setAgent(await rejectAgent(id, rejectReason)); setShowReject(false); setRejectReason(''); } finally { setActionLoading(false); }
-  };
-
-  const handleSaveSettings = async () => {
-    if (!id) return;
-    setSaving(true);
-    try {
-      const updated = await updateAgent(id, {
-        tier: tier as any,
-        markupPercent: Number(markup),
-        commissionRate: Number(commission),
-        creditLimit: Number(creditLimit),
-      });
-      setAgent(updated);
-    } catch {
-      setError('Failed to save settings');
-    } finally {
-      setSaving(false);
-    }
   };
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" /></div>;
@@ -145,7 +98,6 @@ export default function AgentDetail() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${STATUS_COLORS[agent.status] ?? 'bg-slate-100 text-slate-600'}`}>{agent.status}</span>
-            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${TIER_COLORS[agent.tier] ?? 'bg-slate-50 text-slate-600'}`}>{agent.tier}</span>
           </div>
         </div>
 
@@ -191,40 +143,6 @@ export default function AgentDetail() {
         </div>
       </div>
 
-      {/* Pricing settings */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
-        <h3 className="font-bold text-slate-700">Pricing & Tier Settings</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tier</label>
-            <select value={tier} onChange={e => setTier(e.target.value)}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary bg-white">
-              {['BRONZE','SILVER','GOLD','PLATINUM'].map(t => <option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Markup (%)</label>
-            <input type="number" min="0" max="100" step="0.5" value={markup} onChange={e => setMarkup(e.target.value)}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Commission (%)</label>
-            <input type="number" min="0" max="100" step="0.5" value={commission} onChange={e => setCommission(e.target.value)}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Credit Limit ($</label>
-            <input type="number" min="0" value={creditLimit} onChange={e => setCreditLimit(e.target.value)}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
-          </div>
-        </div>
-        <div className="flex justify-end">
-          <button onClick={handleSaveSettings} disabled={saving}
-            className="flex items-center gap-2 px-6 py-2.5 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-secondary disabled:opacity-50 transition-all">
-            <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save Settings'}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

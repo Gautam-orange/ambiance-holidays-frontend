@@ -44,11 +44,6 @@ export default function DayTripManagement() {
     fetch_();
   };
 
-  const toggleAvailability = async (id: string, current: string) => {
-    await apiClient.patch(`/admin/day-trips/${id}/availability`, { availabilityMode: current === 'always' ? 'blocked' : 'always' });
-    fetch_();
-  };
-
   const confirmDelete = async () => {
     if (!deleteId) return;
     await apiClient.delete(`/admin/day-trips/${deleteId}`);
@@ -60,8 +55,8 @@ export default function DayTripManagement() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Day Trip Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage day trips and excursions</p>
+          <h1 className="text-2xl font-bold text-gray-900">Local Experience Management</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage local experiences and excursions</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -77,7 +72,7 @@ export default function DayTripManagement() {
             <Download className="w-4 h-4" /> Export
           </button>
           <Link to="/admin/day-trips/add" className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2.5 rounded-lg font-medium hover:bg-brand-primary/90 transition-colors text-sm">
-            <Plus className="w-4 h-4" /> Add Day Trip
+            <Plus className="w-4 h-4" /> Add Local Experience
           </Link>
         </div>
       </div>
@@ -113,7 +108,6 @@ export default function DayTripManagement() {
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Theme</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Duration</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Availability</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
             </tr>
@@ -124,8 +118,8 @@ export default function DayTripManagement() {
             ) : trips.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-12 text-center">
-                  <p className="text-gray-400 mb-3">No day trips added yet</p>
-                  <Link to="/admin/day-trips/add" className="text-brand-primary font-medium hover:underline text-sm">Add your first day trip</Link>
+                  <p className="text-gray-400 mb-3">No local experiences added yet</p>
+                  <Link to="/admin/day-trips/add" className="text-brand-primary font-medium hover:underline text-sm">Add your first local experience</Link>
                 </td>
               </tr>
             ) : trips.map(trip => (
@@ -139,16 +133,6 @@ export default function DayTripManagement() {
                 <td className="px-4 py-3 text-xs text-gray-500">{trip.theme?.replace('_', ' ') || '—'}</td>
                 <td className="px-4 py-3 font-medium text-gray-900">{fmt(trip.adultPriceCents)}</td>
                 <td className="px-4 py-3 text-gray-600">{trip.duration?.replace('_', ' ')}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => toggleAvailability(trip.id, trip.availabilityMode)} className="focus:outline-none">
-                      {trip.availabilityMode === 'always'
-                        ? <ToggleRight className="w-8 h-8 text-green-500" />
-                        : <ToggleLeft className="w-8 h-8 text-gray-300" />}
-                    </button>
-                    <span className="text-xs text-gray-500">{trip.availabilityMode === 'always' ? 'Available Today' : 'Unavailable'}</span>
-                  </div>
-                </td>
                 <td className="px-4 py-3">
                   <button onClick={() => toggleStatus(trip.id, trip.status)} className="focus:outline-none">
                     {trip.status === 'ACTIVE'
@@ -172,7 +156,7 @@ export default function DayTripManagement() {
       {deleteId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl">
-            <h3 className="font-semibold text-gray-900 mb-2">Delete Day Trip?</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">Delete Local Experience?</h3>
             <p className="text-sm text-gray-500 mb-5">This action cannot be undone. Any future bookings for this trip must be cancelled first.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteId(null)} className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">Cancel</button>
