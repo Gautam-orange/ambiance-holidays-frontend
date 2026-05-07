@@ -191,13 +191,17 @@ export default function BookingDetails() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  /** Pull the human-readable error message out of an axios failure. */
+  const apiErr = (e: any, fallback: string) =>
+    e?.response?.data?.error?.message ?? e?.response?.data?.message ?? fallback;
+
   const handleStatusChange = async (status: string) => {
     if (!booking) return;
     setActionLoading(true);
     try {
       const updated = await adminUpdateBookingStatus(booking.id, status);
       setBooking(updated);
-    } catch { setError('Failed to update status'); }
+    } catch (e) { setError(apiErr(e, 'Failed to update status')); }
     finally { setActionLoading(false); }
   };
 
@@ -208,7 +212,7 @@ export default function BookingDetails() {
       const updated = await adminCancelBooking(booking.id, reason, byType);
       setBooking(updated);
       setShowCancelModal(false);
-    } catch { setError('Failed to cancel booking'); }
+    } catch (e) { setError(apiErr(e, 'Failed to cancel booking')); }
     finally { setActionLoading(false); }
   };
 
@@ -219,7 +223,7 @@ export default function BookingDetails() {
       await apiClient.post(`/admin/enquiries/${booking.id}/convert`);
       const updated = await adminGetBooking(booking.id);
       setBooking(updated);
-    } catch { setError('Failed to convert enquiry'); }
+    } catch (e) { setError(apiErr(e, 'Failed to convert enquiry')); }
     finally { setActionLoading(false); }
   };
 
@@ -233,7 +237,20 @@ export default function BookingDetails() {
       a.download = `invoice-${booking.reference}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { setError('Could not download invoice'); }
+    } catch (e) { setError(apiErr(e, 'Could not download invoice')); }
+  };
+
+  const downloadVoucher = async () => {
+    if (!booking) return;
+    try {
+      const res = await apiClient.get(`/admin/bookings/${booking.id}/voucher`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `voucher-${booking.reference}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { setError(apiErr(e, 'Could not download voucher')); }
   };
 
   if (loading) return <div className="flex items-center justify-center h-64 text-slate-400">Loading…</div>;
@@ -287,6 +304,10 @@ export default function BookingDetails() {
             <button onClick={downloadInvoice}
               className="flex items-center gap-2 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-medium hover:bg-slate-50 text-sm">
               <Download className="w-4 h-4" /> Invoice
+            </button>
+            <button onClick={downloadVoucher}
+              className="flex items-center gap-2 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-medium hover:bg-slate-50 text-sm">
+              <Download className="w-4 h-4" /> Voucher
             </button>
             {booking.isEnquiry && booking.status === 'PENDING' && (
               <button onClick={handleConvertEnquiry} disabled={actionLoading}
