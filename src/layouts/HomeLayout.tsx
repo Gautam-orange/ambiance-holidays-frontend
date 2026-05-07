@@ -1,17 +1,32 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Facebook, Linkedin, Instagram, Phone, Mail, MapPin, LogOut, User, ChevronDown, Twitter, ShoppingCart, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+
+// Pure-admin roles that should be confined to the /admin panel — they
+// must not browse the customer-facing site, regardless of cart state.
+const PURE_ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN_OPS', 'FLEET_MANAGER'];
 
 export default function HomeLayout() {
   const { user, isAuthenticated, logout } = useAuth();
   const { count: cartCount } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
   const [agentOpen, setAgentOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
   const isAgent = user?.role === 'B2B_AGENT';
+  const isPureAdmin = !!user && PURE_ADMIN_ROLES.includes(user.role);
+  const onAgentPath = location.pathname.startsWith('/agent');
+
+  // Pure admins (SuperAdmin / AdminOps / FleetManager) belong in /admin.
+  // The agent portal lives under /agent and is allowed for them so they can
+  // shadow agent flows when needed; everywhere else under HomeLayout (the
+  // customer-facing catalog, cart, checkout) is off-limits.
+  if (isPureAdmin && !onAgentPath) {
+    return <Navigate to="/admin" replace />;
+  }
 
   const handleLogout = async () => {
     setAgentOpen(false);

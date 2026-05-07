@@ -21,8 +21,13 @@ export default function Login() {
       await login({ email, password });
       const storedUser = JSON.parse(localStorage.getItem('user') ?? '{}');
       const role: string = storedUser.role ?? '';
+      // Pure-admin roles always go to /admin — never to a captured `from`,
+      // because that would send a SuperAdmin back to a customer-facing page
+      // (e.g. cart) which they aren't permitted to browse.
+      const PURE_ADMIN = ['SUPER_ADMIN', 'ADMIN_OPS', 'FLEET_MANAGER'];
       const defaultDest = role === 'B2B_AGENT' ? '/agent/bookings' : '/admin';
-      navigate(from ?? defaultDest, { replace: true });
+      const target = PURE_ADMIN.includes(role) ? '/admin' : (from ?? defaultDest);
+      navigate(target, { replace: true });
     } catch (err: any) {
       const msg = err?.response?.data?.error?.message ?? 'Invalid email or password';
       setError(msg);
