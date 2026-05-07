@@ -4,6 +4,7 @@ import { Search, Check, X, Shield, Users, Globe, RefreshCw, ExternalLink, Rotate
 import { cn } from '../../lib/utils';
 import { motion } from 'motion/react';
 import { listAgents, approveAgent, suspendAgent, rejectAgent, reactivateAgent, getDashboardStats, type Agent } from '../../api/agents';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'text-green-600',
@@ -19,6 +20,7 @@ export default function AgentManagement() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [statusFilter, setStatusFilter] = useState('');
   const [stats, setStats] = useState({ total: 0, pending: 0, active: 0, suspended: 0 });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function AgentManagement() {
   const fetchAgents = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listAgents({ search, status: statusFilter || undefined, size: 50 });
+      const res = await listAgents({ search: debouncedSearch, status: statusFilter || undefined, size: 50 });
       setAgents(res.data);
       setTotal(res.meta?.total ?? res.data.length);
     } catch (e) {
@@ -36,7 +38,7 @@ export default function AgentManagement() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter]);
+  }, [debouncedSearch, statusFilter]);
 
   const fetchStats = useCallback(async () => {
     try {

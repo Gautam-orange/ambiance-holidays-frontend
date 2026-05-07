@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { catalogTours, Tour } from '../api/tours';
 import { cn } from '../lib/utils';
+import { useDebouncedValue } from '../lib/useDebouncedValue';
 
 const CATEGORY_ICONS: Record<string, string> = { LAND: '🏔️', SEA: '🌊', AIR: '🪂' };
 const REGIONS = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'];
@@ -37,10 +38,11 @@ export default function Tours() {
   const [duration, setDuration] = useState('');
   const [themes, setThemes] = useState<Set<string>>(new Set());
 
+  const debouncedSearch = useDebouncedValue(search, 300);
   useEffect(() => {
     setLoading(true);
     catalogTours({
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       category: category || undefined,
       region: region || undefined,
       duration: duration || undefined,
@@ -48,7 +50,7 @@ export default function Tours() {
       .then(r => setTours(r.data ?? []))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [search, category, region, duration]);
+  }, [debouncedSearch, category, region, duration]);
 
   const toggleTheme = (t: string) => {
     setThemes(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n; });

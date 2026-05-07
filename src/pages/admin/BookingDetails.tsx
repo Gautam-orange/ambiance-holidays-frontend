@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   ChevronLeft, User, Mail, Phone, Calendar, Tag, CheckCircle, XCircle,
   Clock, AlertTriangle, Download, MapPin, Users, Briefcase, Star,
+  MessageCircle, Flag,
 } from 'lucide-react';
 import { adminGetBooking, adminUpdateBookingStatus, adminCancelBooking, Booking, BookingItem, formatMoney } from '../../api/bookings';
 import { cn } from '../../lib/utils';
@@ -120,10 +121,31 @@ function ItemCard({ item }: { item: BookingItem }) {
             Drop-off: {item.dropoffLocation}
           </span>
         )}
+        {item.startAt && (
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-3 h-3 text-brand-primary" />
+            Pickup time: {new Date(item.startAt).toLocaleString()}
+          </span>
+        )}
+        {item.endAt && (
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-3 h-3 text-brand-primary" />
+            Drop-off time: {new Date(item.endAt).toLocaleString()}
+          </span>
+        )}
         {item.tripType && (
           <span className="flex items-center gap-1.5">
             <Tag className="w-3 h-3 text-brand-primary" />
             {String(item.tripType).replace(/_/g, ' ')}
+          </span>
+        )}
+        {Array.isArray((item as any).stops) && (item as any).stops.length > 0 && (
+          <span className="flex items-start gap-1.5 col-span-full">
+            <MapPin className="w-3 h-3 text-brand-primary mt-0.5 shrink-0" />
+            <span>
+              <span className="font-semibold">Stops:</span>{' '}
+              {((item as any).stops as string[]).filter(Boolean).join(' → ')}
+            </span>
           </span>
         )}
         {item.notes && (
@@ -361,6 +383,24 @@ export default function BookingDetails() {
                     <span>{booking.customerPhone}</span>
                   </div>
                 )}
+                {booking.customerWhatsapp && (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <MessageCircle className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>{booking.customerWhatsapp}</span>
+                  </div>
+                )}
+                {booking.customerNationality && (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Flag className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>{booking.customerNationality}</span>
+                  </div>
+                )}
+                {booking.customerAddress && (
+                  <div className="flex items-start gap-2 text-slate-600">
+                    <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                    <span className="break-words">{booking.customerAddress}</span>
+                  </div>
+                )}
               </div>
 
               {/* Agent */}
@@ -411,6 +451,63 @@ export default function BookingDetails() {
                 </div>
               )}
             </div>
+
+            {/* Payment */}
+            {booking.payment && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
+                <h3 className="font-bold text-slate-800">Payment</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Status</span>
+                    <span className={cn('font-bold uppercase text-xs px-2 py-0.5 rounded-full',
+                      booking.payment.status === 'SUCCEEDED' ? 'bg-green-50 text-green-700' :
+                      booking.payment.status === 'FAILED' ? 'bg-red-50 text-red-700' :
+                      booking.payment.status === 'REFUNDED' ? 'bg-amber-50 text-amber-700' :
+                      'bg-slate-100 text-slate-600')}>
+                      {booking.payment.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Amount</span>
+                    <span className="font-mono font-semibold text-slate-700">
+                      {booking.payment.currency} {(booking.payment.amountCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  {booking.payment.refundedCents > 0 && (
+                    <div className="flex items-center justify-between text-amber-600">
+                      <span>Refunded</span>
+                      <span className="font-mono font-semibold">
+                        {booking.payment.currency} {(booking.payment.refundedCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                  {booking.payment.method && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Method</span>
+                      <span className="font-mono text-xs text-slate-700">{booking.payment.method}</span>
+                    </div>
+                  )}
+                  {booking.payment.peachPaymentId && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Reference</span>
+                      <span className="font-mono text-[10px] text-slate-500 break-all max-w-[60%] text-right">{booking.payment.peachPaymentId}</span>
+                    </div>
+                  )}
+                  {booking.payment.peachResultDesc && (
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-slate-500 shrink-0">Gateway</span>
+                      <span className="text-xs text-slate-500 text-right">{booking.payment.peachResultDesc}</span>
+                    </div>
+                  )}
+                  {booking.payment.paidAt && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Paid at</span>
+                      <span className="text-xs text-slate-500">{new Date(booking.payment.paidAt).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Timeline */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-3">

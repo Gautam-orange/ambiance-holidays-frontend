@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import carsApi, { CarCategory, CarUsageType, CarRateRequest, RatePeriod } from '../../api/cars';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import CoverImageInput from '../../components/CoverImageInput';
 
 const CATEGORIES: CarCategory[] = ['ECONOMY', 'STANDARD', 'PREMIUM', 'LUXURY', 'SUV', 'MINIVAN'];
 
@@ -80,12 +81,15 @@ export default function AddCar() {
     const filled = activeRates.filter(r => r.amountEur.trim() !== '');
     const isTransfer = usageType === 'TRANSFER' || usageType === 'BOTH';
 
+    if (filled.length === 0) {
+      return 'At least one rate with a non-zero price is required.';
+    }
     // Per-row checks
     for (let i = 0; i < filled.length; i++) {
       const r = filled[i];
       const amt = parseFloat(r.amountEur);
-      if (Number.isNaN(amt) || amt < 0) {
-        return `Rate row ${i + 1}: price must be a non-negative number.`;
+      if (Number.isNaN(amt) || amt <= 0) {
+        return `Rate row ${i + 1}: price must be greater than zero.`;
       }
       if (r.period === 'PER_KM') {
         const from = r.kmFrom.trim() ? parseInt(r.kmFrom) : 0;
@@ -225,34 +229,10 @@ export default function AddCar() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Image */}
           <div className="space-y-6">
-            <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center space-y-4">
-              {form.coverImageUrl ? (
-                <div className="w-full aspect-video rounded-2xl overflow-hidden relative">
-                  <img src={form.coverImageUrl} alt="Cover" className="w-full h-full object-cover" />
-                  <button type="button" onClick={() => setForm(f => ({ ...f, coverImageUrl: '' }))}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="w-16 h-16 bg-brand-primary/10 rounded-2xl flex items-center justify-center text-brand-primary">
-                    <Upload className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-700">Cover Image URL</p>
-                    <p className="text-xs text-slate-400 mt-1">Paste an image URL below</p>
-                  </div>
-                </>
-              )}
-              <input
-                type="url"
-                placeholder="https://..."
-                value={form.coverImageUrl}
-                onChange={e => setForm(f => ({ ...f, coverImageUrl: e.target.value }))}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-brand-primary"
-              />
-            </div>
+            <CoverImageInput
+              value={form.coverImageUrl}
+              onChange={url => setForm(f => ({ ...f, coverImageUrl: url }))}
+            />
 
             {/* Includes / Excludes */}
             <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2, ChevronLeft } from 'lucide-react';
 import { adminGetTour, adminUpdateTour } from '../../api/tours';
 import { cn } from '../../lib/utils';
+import CoverImageInput from '../../components/CoverImageInput';
 
 interface ItineraryRow { stopTime: string; title: string; description: string; }
 interface PickupRow { zoneName: string; extraCents: string; pickupTime: string; }
@@ -158,9 +159,12 @@ export default function EditTour() {
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cover Image URL</label>
-              <input type="url" value={form.coverImageUrl} onChange={e => set('coverImageUrl', e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cover Image</label>
+              <CoverImageInput
+                value={form.coverImageUrl}
+                onChange={url => set('coverImageUrl', url)}
+                folder="tours"
+              />
             </div>
           </div>
         </section>

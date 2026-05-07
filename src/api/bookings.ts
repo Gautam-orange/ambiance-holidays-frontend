@@ -29,6 +29,8 @@ export interface BookingItem {
   unitPriceCents: number;
   totalCents: number;
   serviceDate: string;
+  startAt: string | null;
+  endAt: string | null;
   pickupLocation: string | null;
   dropoffLocation: string | null;
   paxAdults: number;
@@ -37,6 +39,7 @@ export interface BookingItem {
   rentalDays: number | null;
   tripType: string | null;
   notes: string | null;
+  stops: string[];
   extras: { id: string; label: string; quantity: number; unitPriceCents: number; totalCents: number }[];
 }
 
@@ -47,6 +50,9 @@ export interface Booking {
   customerName: string;
   customerEmail: string;
   customerPhone: string | null;
+  customerWhatsapp: string | null;
+  customerNationality: string | null;
+  customerAddress: string | null;
   agentName: string | null;
   agentId: string | null;
   createdByName: string | null;
@@ -68,6 +74,24 @@ export interface Booking {
   createdAt: string;
   updatedAt: string;
   items: BookingItem[];
+  payment?: BookingPaymentSummary | null;
+}
+
+export interface BookingPaymentSummary {
+  id: string;
+  status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
+  method: string | null;
+  amountCents: number;
+  refundedCents: number;
+  currency: string;
+  peachCheckoutId: string | null;
+  peachPaymentId: string | null;
+  peachResultCode: string | null;
+  peachResultDesc: string | null;
+  paidAt: string | null;
+  refundedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Cart

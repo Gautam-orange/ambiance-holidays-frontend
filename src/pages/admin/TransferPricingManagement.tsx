@@ -69,6 +69,24 @@ export default function TransferPricingManagement() {
   const cancelEdit = () => { setEditId(null); setForm(emptyForm()); };
 
   const handleSave = async (id?: string) => {
+    // Client-side guards — empty label / zero price would otherwise produce
+    // a useless tier or a confusing 400 from the backend.
+    if (!form.label.trim()) {
+      setError('Label is required.');
+      return;
+    }
+    if (!form.priceCents || form.priceCents <= 0) {
+      setError('Price must be greater than zero.');
+      return;
+    }
+    if (form.minKm < 0) {
+      setError('Min KM cannot be negative.');
+      return;
+    }
+    if (form.maxKm !== null && form.maxKm <= form.minKm) {
+      setError('Max KM must be greater than Min KM (or blank for unlimited).');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -88,7 +106,7 @@ export default function TransferPricingManagement() {
       setForm(emptyForm());
       load();
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Save failed');
+      setError(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -96,11 +114,12 @@ export default function TransferPricingManagement() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this pricing tier?')) return;
+    setError('');
     try {
       await apiClient.delete(`/admin/transfer-pricing/${id}`);
       load();
-    } catch {
-      setError('Delete failed');
+    } catch (e: any) {
+      setError(e?.response?.data?.error?.message ?? e?.response?.data?.message ?? 'Delete failed');
     }
   };
 

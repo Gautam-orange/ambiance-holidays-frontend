@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 import carsApi, { Car, CarCategory, CarRateRequest, RatePeriod } from '../../api/cars';
+import CoverImageInput from '../../components/CoverImageInput';
 
 const CATEGORIES: CarCategory[] = ['ECONOMY', 'STANDARD', 'PREMIUM', 'LUXURY', 'SUV', 'MINIVAN'];
 
@@ -317,11 +318,11 @@ export default function CarDetail() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Cover Image URL</label>
-            <input type="url" value={car.coverImageUrl ?? ''}
-              onChange={e => setCar(c => c && ({ ...c, coverImageUrl: e.target.value }))}
-              placeholder="https://..."
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Cover Image</label>
+            <CoverImageInput
+              value={car.coverImageUrl ?? ''}
+              onChange={url => setCar(c => c && ({ ...c, coverImageUrl: url }))}
+            />
           </div>
 
           <div>

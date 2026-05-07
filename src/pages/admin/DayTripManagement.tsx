@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, ToggleLeft, ToggleRight, Download } from 'lucide-react';
 import apiClient from '../../api/client';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
 
 type DayTrip = {
   id: string;
@@ -26,10 +27,11 @@ export default function DayTripManagement() {
   const [statusFilter, setStatusFilter] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const debouncedSearch = useDebouncedValue(search, 300);
   const fetch_ = () => {
     setLoading(true);
     const params: Record<string, string> = {};
-    if (search) params.search = search;
+    if (debouncedSearch) params.search = debouncedSearch;
     if (statusFilter) params.status = statusFilter;
     apiClient.get('/admin/day-trips', { params })
       .then(r => setTrips(r.data?.data?.content ?? r.data?.data?.items ?? r.data?.data ?? []))
@@ -37,7 +39,7 @@ export default function DayTripManagement() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetch_(); }, [search, statusFilter]);
+  useEffect(() => { fetch_(); }, [debouncedSearch, statusFilter]);
 
   const toggleStatus = async (id: string, current: string) => {
     await apiClient.patch(`/admin/day-trips/${id}/status`, { status: current === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' });

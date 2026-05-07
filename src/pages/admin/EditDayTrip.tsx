@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Plus, Trash2, ArrowLeft } from 'lucide-react';
+import CoverImageInput from '../../components/CoverImageInput';
 
 type ItineraryStop = { title: string; timeLabel: string; location: string; description: string };
 type PickupZone = { zoneName: string; hotelName: string; pickupTimeFrom: string; pickupTimeTo: string };
@@ -20,6 +21,7 @@ export default function EditDayTrip() {
     pricePerVehicleCents: '', adultPriceCents: '', netRatePerPaxCents: '', markupPct: '',
     maxPax: '', description: '',
     includes: [''], excludes: [''],
+    coverImageUrl: '',
   });
   const [itinerary, setItinerary] = useState<ItineraryStop[]>([]);
   const [pickupZones, setPickupZones] = useState<PickupZone[]>([]);
@@ -51,6 +53,7 @@ export default function EditDayTrip() {
           description: t.description ?? '',
           includes: Array.isArray(t.includes) && t.includes.length ? t.includes : [''],
           excludes: Array.isArray(t.excludes) && t.excludes.length ? t.excludes : [''],
+          coverImageUrl: t.coverImageUrl ?? '',
         });
         setItinerary((t.itineraryStops ?? []).map((s: any) => ({
           title: s.title ?? '', timeLabel: s.timeLabel ?? s.stopTime ?? '',
@@ -82,6 +85,7 @@ export default function EditDayTrip() {
         markupPct: form.markupPct ? Number(form.markupPct) : 0,
         maxPax: form.maxPax ? Number(form.maxPax) : 20,
         description: form.description,
+        coverImageUrl: form.coverImageUrl || undefined,
         includes: form.includes.filter(Boolean),
         excludes: form.excludes.filter(Boolean),
         itineraryStops: itinerary.filter(s => s.title).map((s, i) => ({ ...s, stopOrder: i })),
@@ -138,6 +142,14 @@ export default function EditDayTrip() {
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
           <h2 className="font-semibold text-gray-800">Basic Information</h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cover Image</label>
+            <CoverImageInput
+              value={form.coverImageUrl}
+              onChange={url => set('coverImageUrl', url)}
+              folder="day-trips"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Tour Name *</label>
             <input type="text" required value={form.title} onChange={e => set('title', e.target.value)}

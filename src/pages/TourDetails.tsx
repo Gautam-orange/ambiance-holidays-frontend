@@ -59,12 +59,22 @@ export default function TourDetails() {
       return;
     }
     setAdding(true);
+    // Resolve the readable zone label so cart / admin booking screens don't
+    // render the raw UUID. Falls back to undefined when nothing is picked.
+    const zoneObj = tour.pickupZones?.find((z: any) => z.id === selectedZoneId);
+    const pickupLocation = zoneObj?.zoneName ?? undefined;
     try {
       await addToCart({
         itemType: 'TOUR',
         refId: tour.id,
         quantity: paxAdults,
-        options: { paxAdults, paxChildren, markupPercent: markupPct || undefined, pickupZoneId: selectedZoneId || undefined },
+        options: {
+          paxAdults,
+          paxChildren,
+          markupPercent: markupPct || undefined,
+          pickupZoneId: selectedZoneId || undefined,
+          pickupLocation,
+        },
       });
       setAdded(true);
       setTimeout(() => setAdded(false), 3000);

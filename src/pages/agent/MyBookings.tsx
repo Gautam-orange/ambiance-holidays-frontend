@@ -155,6 +155,47 @@ function BookingRow({
           <td colSpan={7} className="px-0 py-0 bg-slate-50 border-t border-b border-slate-100">
             <div className="px-5 py-5 space-y-4">
 
+              {/* Customer details collected at checkout */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-3">Customer Details</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                  <span className="flex items-center gap-1.5 text-slate-600">
+                    <Users className="w-3 h-3 text-brand-primary shrink-0" />
+                    <span className="font-semibold text-slate-700">{customerName}</span>
+                  </span>
+                  {customerEmail && (
+                    <span className="flex items-center gap-1.5 text-slate-600 break-all">
+                      <Tag className="w-3 h-3 text-brand-primary shrink-0" />
+                      {customerEmail}
+                    </span>
+                  )}
+                  {booking.customerPhone && (
+                    <span className="flex items-center gap-1.5 text-slate-600">
+                      <Tag className="w-3 h-3 text-brand-primary shrink-0" />
+                      Phone: {booking.customerPhone}
+                    </span>
+                  )}
+                  {booking.customerWhatsapp && (
+                    <span className="flex items-center gap-1.5 text-slate-600">
+                      <Tag className="w-3 h-3 text-brand-primary shrink-0" />
+                      WhatsApp: {booking.customerWhatsapp}
+                    </span>
+                  )}
+                  {booking.customerNationality && (
+                    <span className="flex items-center gap-1.5 text-slate-600">
+                      <Tag className="w-3 h-3 text-brand-primary shrink-0" />
+                      Nationality: {booking.customerNationality}
+                    </span>
+                  )}
+                  {booking.customerAddress && (
+                    <span className="flex items-start gap-1.5 text-slate-600 md:col-span-2 break-words">
+                      <MapPin className="w-3 h-3 text-brand-primary shrink-0 mt-0.5" />
+                      {booking.customerAddress}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               {/* Price breakdown */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[

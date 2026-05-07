@@ -1,10 +1,31 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { CheckCircle, Download, ArrowRight, Compass } from 'lucide-react';
+import { clearCart } from '../api/bookings';
+import { useCart } from '../contexts/CartContext';
 
 export default function PaymentSuccessPage() {
   const [params] = useSearchParams();
   const bookingRef = params.get('ref');
+  const { refresh, applyCart } = useCart();
+
+  // Belt-and-braces: the backend's Peach return handler already clears the
+  // server cart when the payment succeeds, but if that webhook is delayed or
+  // the user reloads, the SPA could still hold the old line items. Force a
+  // clear + re-fetch on this page.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await clearCart();
+        if (!cancelled) applyCart(null);
+      } catch {
+        // server may already be empty — fall through and refresh
+      }
+      if (!cancelled) refresh();
+    })();
+    return () => { cancelled = true; };
+  }, [applyCart, refresh]);
 
   // Logged-in agents/admins land on the agent bookings page; guest customers
   // (who have no listing page in the app) land on the booking detail page

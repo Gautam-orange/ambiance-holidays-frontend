@@ -70,9 +70,9 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className="w-64 bg-brand-900 text-white flex flex-col flex-shrink-0 overflow-y-auto">
         <div className="p-6 flex-1">
-          <div className="mb-8">
+          <Link to="/admin" className="mb-8 block" title="Dashboard">
             <img src="/images/logo.png" alt="Ambiance Holidays" className="h-10 w-auto brightness-0 invert" />
-          </div>
+          </Link>
 
           <nav className="space-y-1">
             <NavLink
