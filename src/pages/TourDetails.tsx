@@ -46,6 +46,15 @@ export default function TourDetails() {
   const zone = tour.pickupZones?.find(z => z.id === selectedZoneId);
   const zoneExtra = zone?.extraCents ?? 0;
 
+  // Capacity rules — adults + children count toward maxPax, infants ride free
+  // on a parent's lap and don't consume a seat. minPax is a per-tour business
+  // floor (the tour won't run for fewer guests).
+  const seatedPax = paxAdults + paxChildren;
+  const minPax = tour.minPax ?? 1;
+  const maxPax = tour.maxPax ?? 20;
+  const atMaxCapacity = seatedPax >= maxPax;
+  const belowMinPax = seatedPax < minPax;
+
   const adultTotal = tour.adultPriceCents * paxAdults;
   const childTotal = tour.childPriceCents * paxChildren;
   const infantTotal = (tour.infantPriceCents ?? 0) * paxInfants;
@@ -58,6 +67,14 @@ export default function TourDetails() {
     if (!tour) return;
     if (isOnRequest) {
       navigate('/contact', { state: { subject: `Enquiry: ${tour.title}` } });
+      return;
+    }
+    if (belowMinPax) {
+      alert(`This tour requires a minimum of ${minPax} guest${minPax === 1 ? '' : 's'}.`);
+      return;
+    }
+    if (seatedPax > maxPax) {
+      alert(`This tour can host at most ${maxPax} guest${maxPax === 1 ? '' : 's'}.`);
       return;
     }
     setAdding(true);
@@ -231,9 +248,13 @@ export default function TourDetails() {
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Adults — {fmt(tour.adultPriceCents)} each</label>
               <div className="flex items-center gap-3">
-                <button onClick={() => setPaxAdults(p => Math.max(1, p - 1))} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">−</button>
+                <button onClick={() => setPaxAdults(p => Math.max(1, p - 1))}
+                  disabled={paxAdults <= 1}
+                  className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">−</button>
                 <span className="font-bold text-slate-800 w-6 text-center">{paxAdults}</span>
-                <button onClick={() => setPaxAdults(p => Math.min(tour.maxPax, p + 1))} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">+</button>
+                <button onClick={() => setPaxAdults(p => Math.min(maxPax - paxChildren, p + 1))}
+                  disabled={atMaxCapacity}
+                  className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">+</button>
               </div>
             </div>
 
@@ -242,26 +263,51 @@ export default function TourDetails() {
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Children — {fmt(tour.childPriceCents)} each</label>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setPaxChildren(p => Math.max(0, p - 1))} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">−</button>
+                  <button onClick={() => setPaxChildren(p => Math.max(0, p - 1))}
+                    disabled={paxChildren <= 0}
+                    className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">−</button>
                   <span className="font-bold text-slate-800 w-6 text-center">{paxChildren}</span>
-                  <button onClick={() => setPaxChildren(p => p + 1)} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">+</button>
+                  <button onClick={() => setPaxChildren(p => Math.min(maxPax - paxAdults, p + 1))}
+                    disabled={atMaxCapacity}
+                    className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">+</button>
                 </div>
               </div>
             )}
 
-            {/* Infants — shown when admin configured an infant price (often 0). */}
+            {/* Infants — shown when admin configured an infant price (often 0).
+                Infants don't consume a seat, so they don't count toward maxPax. */}
             {(tour.infantPriceCents ?? 0) >= 0 && tour.infantPriceCents !== undefined && (
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
                   Infants {tour.infantPriceCents > 0 ? `— ${fmt(tour.infantPriceCents)} each` : '— Free'}
                 </label>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setPaxInfants(p => Math.max(0, p - 1))} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">−</button>
+                  <button onClick={() => setPaxInfants(p => Math.max(0, p - 1))}
+                    disabled={paxInfants <= 0}
+                    className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">−</button>
                   <span className="font-bold text-slate-800 w-6 text-center">{paxInfants}</span>
                   <button onClick={() => setPaxInfants(p => p + 1)} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">+</button>
                 </div>
               </div>
             )}
+
+            {/* Capacity / minimum-pax notice */}
+            <div className="text-xs space-y-1">
+              <p className="text-slate-400">
+                {seatedPax} of {maxPax} guest{maxPax === 1 ? '' : 's'} selected
+                {paxInfants > 0 && ` (+ ${paxInfants} infant${paxInfants === 1 ? '' : 's'})`}
+              </p>
+              {belowMinPax && (
+                <p className="text-amber-600 font-medium">
+                  This tour requires a minimum of {minPax} guest{minPax === 1 ? '' : 's'}.
+                </p>
+              )}
+              {atMaxCapacity && (
+                <p className="text-amber-600 font-medium">
+                  Maximum capacity reached.
+                </p>
+              )}
+            </div>
 
             {/* Markup */}
             <div>
@@ -295,14 +341,16 @@ export default function TourDetails() {
                 <Check className="w-4 h-4" /> View Cart
               </Link>
             ) : (
-              <button onClick={handleAction} disabled={adding}
-                className="w-full bg-brand-primary text-white py-3.5 rounded-2xl font-bold hover:bg-brand-secondary transition-all shadow-lg shadow-brand-primary/20 disabled:opacity-60 flex items-center justify-center gap-2">
+              <button onClick={handleAction} disabled={adding || (!!user && !isOnRequest && belowMinPax)}
+                className="w-full bg-brand-primary text-white py-3.5 rounded-2xl font-bold hover:bg-brand-secondary transition-all shadow-lg shadow-brand-primary/20 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                 {!user ? (
                   <><LogIn className="w-4 h-4" /> Login to Book</>
                 ) : isOnRequest ? (
                   <><ShoppingCart className="w-4 h-4" /> Request Booking</>
                 ) : adding ? (
                   'Adding…'
+                ) : belowMinPax ? (
+                  <>Add at least {minPax} guest{minPax === 1 ? '' : 's'}</>
                 ) : (
                   <><ShoppingCart className="w-4 h-4" /> Add to Cart</>
                 )}

@@ -202,18 +202,39 @@ export default function DayTripDetails() {
               {trip.markupPct > 0 && <p>Default markup: <span className="font-medium text-gray-700">{trip.markupPct}%</span></p>}
             </div>
 
-            {/* Pax selectors */}
+            {/* Pax selectors — adults + children share the maxPax pool. */}
             <div className="space-y-3 mt-4">
-              {[{ label: 'Adults', value: adults, set: setAdults, min: 1 }, { label: 'Children', value: children, set: setChildren, min: 0 }].map(({ label, value, set, min }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">{label}</span>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => set(Math.max(min, value - 1))} className="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"><Minus className="w-3 h-3" /></button>
-                    <span className="w-6 text-center text-sm font-medium">{value}</span>
-                    <button onClick={() => set(Math.min(trip.maxPax, value + 1))} className="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"><Plus className="w-3 h-3" /></button>
+              {[
+                { label: 'Adults',   value: adults,   set: setAdults,   min: 1, other: children },
+                { label: 'Children', value: children, set: setChildren, min: 0, other: adults },
+              ].map(({ label, value, set, min, other }) => {
+                const remaining = trip.maxPax > 0 ? trip.maxPax - (value + other) : Number.MAX_SAFE_INTEGER;
+                const atCap = remaining <= 0;
+                return (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">{label}</span>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => set(Math.max(min, value - 1))}
+                        disabled={value <= min}
+                        className="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-6 text-center text-sm font-medium">{value}</span>
+                      <button onClick={() => set(value + 1)}
+                        disabled={atCap}
+                        className="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+              {trip.maxPax > 0 && (
+                <p className="text-xs text-gray-400">
+                  {pax} of {trip.maxPax} guest{trip.maxPax === 1 ? '' : 's'} selected
+                  {pax >= trip.maxPax && <span className="ml-2 text-amber-600 font-medium">— at capacity</span>}
+                </p>
+              )}
             </div>
 
             {/* Service date */}
