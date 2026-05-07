@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, Edit, Trash2, RefreshCw, Download } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, RefreshCw, Download, Eye } from 'lucide-react';
 import { adminListTours, adminDeleteTour, Tour } from '../../api/tours';
 import { cn } from '../../lib/utils';
 
@@ -162,13 +162,19 @@ export default function ToursManagement() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-center gap-1">
-                      <Link to={`/admin/activities/edit/${tour.id}`}>
+                      <Link to={`/tours/${tour.slug}`} target="_blank" rel="noreferrer" title="View public page">
+                        <button className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </Link>
+                      <Link to={`/admin/activities/edit/${tour.id}`} title="Edit">
                         <button className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg">
                           <Edit className="w-4 h-4" />
                         </button>
                       </Link>
                       <button
                         onClick={() => handleDelete(tour.id)}
+                        title="Delete"
                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
                       >
                         <Trash2 className="w-4 h-4" />

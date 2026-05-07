@@ -4,7 +4,7 @@ import { Plus, Trash2, ArrowLeft } from 'lucide-react';
 import CoverImageInput from '../../components/CoverImageInput';
 
 type ItineraryStop = { title: string; timeLabel: string; location: string; description: string };
-type PickupZone = { zoneName: string; hotelName: string; pickupTimeFrom: string; pickupTimeTo: string };
+type PickupZone = { zoneName: string; hotelName: string; pickupFrom: string; pickupTo: string };
 
 const REGIONS = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'];
 const THEMES = ['NATURE', 'ADVENTURE', 'CULTURAL', 'SEA_ACTIVITIES', 'BEACH'];
@@ -18,7 +18,7 @@ export default function EditDayTrip() {
   const [form, setForm] = useState({
     title: '', region: 'NORTH', tripType: 'SHARED', theme: '', duration: 'FULL_DAY',
     availabilityMode: 'always', status: 'ACTIVE',
-    pricePerVehicleCents: '', adultPriceCents: '', netRatePerPaxCents: '', markupPct: '',
+    pricePerVehicleCents: '', adultPriceCents: '', childPriceCents: '', netRatePerPaxCents: '', markupPct: '',
     maxPax: '', description: '',
     includes: [''], excludes: [''],
     coverImageUrl: '',
@@ -47,6 +47,7 @@ export default function EditDayTrip() {
           status: t.status ?? 'ACTIVE',
           pricePerVehicleCents: t.pricePerVehicleCents ? String(t.pricePerVehicleCents / 100) : '',
           adultPriceCents: t.adultPriceCents ? String(t.adultPriceCents / 100) : '',
+          childPriceCents: t.childPriceCents ? String(t.childPriceCents / 100) : '',
           netRatePerPaxCents: t.netRatePerPaxCents ? String(t.netRatePerPaxCents / 100) : '',
           markupPct: t.markupPct != null ? String(t.markupPct) : '',
           maxPax: t.maxPax != null ? String(t.maxPax) : '',
@@ -61,7 +62,8 @@ export default function EditDayTrip() {
         })));
         setPickupZones((t.pickupZones ?? []).map((z: any) => ({
           zoneName: z.zoneName ?? '', hotelName: z.hotelName ?? '',
-          pickupTimeFrom: z.pickupTimeFrom ?? z.pickupTime ?? '', pickupTimeTo: z.pickupTimeTo ?? '',
+          pickupFrom: z.pickupFrom ?? z.pickupTimeFrom ?? z.pickupTime ?? '',
+          pickupTo: z.pickupTo ?? z.pickupTimeTo ?? '',
         })));
         setHighlights((t.highlights ?? []).map((h: any) => h.text ?? h).concat(['']));
       })
@@ -81,6 +83,7 @@ export default function EditDayTrip() {
         availabilityMode: form.availabilityMode, status: form.status,
         pricePerVehicleCents: form.pricePerVehicleCents ? Number(form.pricePerVehicleCents) * 100 : 0,
         adultPriceCents: form.adultPriceCents ? Number(form.adultPriceCents) * 100 : 0,
+        childPriceCents: form.childPriceCents ? Number(form.childPriceCents) * 100 : 0,
         netRatePerPaxCents: form.netRatePerPaxCents ? Number(form.netRatePerPaxCents) * 100 : 0,
         markupPct: form.markupPct ? Number(form.markupPct) : 0,
         maxPax: form.maxPax ? Number(form.maxPax) : 20,
@@ -200,9 +203,10 @@ export default function EditDayTrip() {
           <h2 className="font-semibold text-gray-800">Pricing</h2>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: 'Price Per Vehicle ($', key: 'pricePerVehicleCents' },
-              { label: 'Price Per Passenger ($', key: 'adultPriceCents' },
-              { label: 'Net Rate per Pax ($', key: 'netRatePerPaxCents' },
+              { label: 'Price Per Vehicle ($)', key: 'pricePerVehicleCents' },
+              { label: 'Adult Price ($)', key: 'adultPriceCents' },
+              { label: 'Child Price ($)', key: 'childPriceCents' },
+              { label: 'Net Rate per Pax ($)', key: 'netRatePerPaxCents' },
               { label: 'Markup (%)', key: 'markupPct' },
               { label: 'Max Pax', key: 'maxPax' },
             ].map(({ label, key }) => (
@@ -221,6 +225,100 @@ export default function EditDayTrip() {
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary resize-none" />
           {listField('Inclusions', form.includes, items => setForm(f => ({ ...f, includes: items })))}
           {listField('Exclusions', form.excludes, items => setForm(f => ({ ...f, excludes: items })))}
+        </div>
+
+        {/* Key Highlights */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+          <h2 className="font-semibold text-gray-800">Key Highlights</h2>
+          <div className="space-y-2">
+            {highlights.map((h, i) => (
+              <div key={i} className="flex gap-2">
+                <input type="text" value={h} onChange={e => { const n = [...highlights]; n[i] = e.target.value; setHighlights(n); }}
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  placeholder="Highlight description" />
+                <button type="button" onClick={() => setHighlights(highlights.filter((_, j) => j !== i))} className="p-2 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4 text-red-400" /></button>
+              </div>
+            ))}
+            <button type="button" onClick={() => setHighlights([...highlights, ''])} className="flex items-center gap-1 text-sm text-brand-primary hover:text-brand-primary/80 font-medium">
+              <Plus className="w-4 h-4" /> Add Highlight
+            </button>
+          </div>
+        </div>
+
+        {/* Itinerary */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+          <h2 className="font-semibold text-gray-800">Itinerary</h2>
+          <div className="space-y-4">
+            {itinerary.map((stop, i) => (
+              <div key={i} className="border border-gray-100 rounded-lg p-4 relative">
+                <button type="button" onClick={() => setItinerary(itinerary.filter((_, j) => j !== i))} className="absolute top-3 right-3 p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Title</label>
+                    <input type="text" value={stop.title} onChange={e => { const s = [...itinerary]; s[i] = { ...s[i], title: e.target.value }; setItinerary(s); }}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Time</label>
+                    <input type="text" placeholder="e.g. 9:00 AM" value={stop.timeLabel} onChange={e => { const s = [...itinerary]; s[i] = { ...s[i], timeLabel: e.target.value }; setItinerary(s); }}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Location</label>
+                    <input type="text" value={stop.location} onChange={e => { const s = [...itinerary]; s[i] = { ...s[i], location: e.target.value }; setItinerary(s); }}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Description</label>
+                    <textarea rows={2} value={stop.description} onChange={e => { const s = [...itinerary]; s[i] = { ...s[i], description: e.target.value }; setItinerary(s); }}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary resize-none" />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={() => setItinerary([...itinerary, { title: '', timeLabel: '', location: '', description: '' }])}
+              className="flex items-center gap-2 text-sm text-brand-primary hover:text-brand-primary/80 font-medium">
+              <Plus className="w-4 h-4" /> Add Stop
+            </button>
+          </div>
+        </div>
+
+        {/* Pickup Zones */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+          <h2 className="font-semibold text-gray-800">Pickup Zones</h2>
+          <div className="space-y-4">
+            {pickupZones.map((zone, i) => (
+              <div key={i} className="border border-gray-100 rounded-lg p-4 relative">
+                <button type="button" onClick={() => setPickupZones(pickupZones.filter((_, j) => j !== i))} className="absolute top-3 right-3 p-1 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4 text-red-400" /></button>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Zone Name *</label>
+                    <input type="text" value={zone.zoneName} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], zoneName: e.target.value }; setPickupZones(z); }}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Hotel Name</label>
+                    <input type="text" value={zone.hotelName} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], hotelName: e.target.value }; setPickupZones(z); }}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Pickup From</label>
+                    <input type="text" placeholder="e.g. Hotel lobby, JBR Marina" value={zone.pickupFrom} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], pickupFrom: e.target.value }; setPickupZones(z); }}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Pickup To</label>
+                    <input type="text" placeholder="e.g. Tour starting point" value={zone.pickupTo} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], pickupTo: e.target.value }; setPickupZones(z); }}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={() => setPickupZones([...pickupZones, { zoneName: '', hotelName: '', pickupFrom: '', pickupTo: '' }])}
+              className="flex items-center gap-2 text-sm text-brand-primary hover:text-brand-primary/80 font-medium">
+              <Plus className="w-4 h-4" /> Add Zone
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-3">

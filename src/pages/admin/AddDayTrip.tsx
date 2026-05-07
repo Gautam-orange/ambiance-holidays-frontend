@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ArrowLeft } from 'lucide-react';
 
 type ItineraryStop = { title: string; timeLabel: string; location: string; description: string };
-type PickupZone = { zoneName: string; hotelName: string; pickupTimeFrom: string; pickupTimeTo: string };
+type PickupZone = { zoneName: string; hotelName: string; pickupFrom: string; pickupTo: string };
 type Highlight = string;
 
 const REGIONS = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'];
@@ -21,7 +21,7 @@ export default function AddDayTrip() {
     includes: [''], excludes: [''],
   });
   const [itinerary, setItinerary] = useState<ItineraryStop[]>([{ title: '', timeLabel: '', location: '', description: '' }]);
-  const [pickupZones, setPickupZones] = useState<PickupZone[]>([{ zoneName: '', hotelName: '', pickupTimeFrom: '', pickupTimeTo: '' }]);
+  const [pickupZones, setPickupZones] = useState<PickupZone[]>([{ zoneName: '', hotelName: '', pickupFrom: '', pickupTo: '' }]);
   const [highlights, setHighlights] = useState<Highlight[]>(['']);
   const [coverImage, setCoverImage] = useState<File | null>(null);
 
@@ -30,8 +30,11 @@ export default function AddDayTrip() {
   const uploadImage = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append('file', file);
-    const res = await fetch('/api/v1/uploads', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }, body: fd });
+    fd.append('folder', 'day-trips');
+    // /uploads/image is the multipart upload route (not /uploads which is a presign helper)
+    const res = await fetch('/api/v1/uploads/image', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }, body: fd });
     const d = await res.json();
+    if (!res.ok) throw new Error(d?.error?.message ?? `Upload failed (${res.status})`);
     return d.data?.url ?? '';
   };
 
@@ -306,18 +309,18 @@ export default function AddDayTrip() {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-600 mb-1 block">Pickup From</label>
-                    <input type="time" value={zone.pickupTimeFrom} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], pickupTimeFrom: e.target.value }; setPickupZones(z); }}
+                    <input type="text" placeholder="e.g. Hotel lobby, JBR Marina" value={zone.pickupFrom} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], pickupFrom: e.target.value }; setPickupZones(z); }}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-600 mb-1 block">Pickup To</label>
-                    <input type="time" value={zone.pickupTimeTo} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], pickupTimeTo: e.target.value }; setPickupZones(z); }}
+                    <input type="text" placeholder="e.g. Tour starting point" value={zone.pickupTo} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], pickupTo: e.target.value }; setPickupZones(z); }}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
                   </div>
                 </div>
               </div>
             ))}
-            <button type="button" onClick={() => setPickupZones([...pickupZones, { zoneName: '', hotelName: '', pickupTimeFrom: '', pickupTimeTo: '' }])}
+            <button type="button" onClick={() => setPickupZones([...pickupZones, { zoneName: '', hotelName: '', pickupFrom: '', pickupTo: '' }])}
               className="flex items-center gap-2 text-sm text-brand-primary hover:text-brand-primary/80 font-medium">
               <Plus className="w-4 h-4" /> Add Zone
             </button>

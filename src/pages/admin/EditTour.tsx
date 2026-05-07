@@ -48,8 +48,10 @@ export default function EditTour() {
           excludes: Array.isArray(t.excludes) ? t.excludes.join('\n') : '',
           importantNotes: Array.isArray(t.importantNotes) ? t.importantNotes.join('\n') : '',
           coverImageUrl: t.coverImageUrl ?? '',
-          status: t.status ?? 'ACTIVE',
-          availabilityMode: t.availabilityMode ?? 'always',
+          // ON_REQUEST is encoded in the TourStatus enum (no separate column),
+          // so derive the picker from the status when loading.
+          status: t.status === 'ON_REQUEST' ? 'ACTIVE' : (t.status ?? 'ACTIVE'),
+          availabilityMode: t.status === 'ON_REQUEST' ? 'on_request' : (t.availabilityMode ?? 'always'),
           theme: t.theme ?? 'NATURE',
         });
         setItinerary((t.itineraryStops ?? []).map((s: any) => ({
@@ -87,7 +89,9 @@ export default function EditTour() {
         excludes: form.excludes ? form.excludes.split('\n').filter(Boolean) : undefined,
         importantNotes: form.importantNotes ? form.importantNotes.split('\n').filter(Boolean) : undefined,
         coverImageUrl: form.coverImageUrl || undefined,
-        status: form.status as any,
+        // ON_REQUEST is a TourStatus enum value, not a separate availabilityMode.
+        // Map the picker through to the status enum.
+        status: (form.availabilityMode === 'on_request' ? 'ON_REQUEST' : form.status) as any,
         theme: form.theme as any,
         availabilityMode: form.availabilityMode as any,
         itineraryStops: itinerary.filter(r => r.title).map((r, i) => ({

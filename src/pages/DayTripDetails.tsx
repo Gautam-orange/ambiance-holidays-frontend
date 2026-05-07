@@ -12,6 +12,7 @@ type DayTripDetail = {
   duration: string;
   adultPriceCents: number;
   childPriceCents: number;
+  pricePerVehicleCents: number;
   netRatePerPaxCents: number;
   markupPct: number;
   maxPax: number;
@@ -22,7 +23,7 @@ type DayTripDetail = {
   availabilityMode: 'always' | 'on_request';
   highlights: { id: string; text: string }[];
   itineraryStops: { id: string; stopOrder: number; title: string; timeLabel: string; location: string; description: string }[];
-  pickupZones: { id: string; zoneName: string; hotelName: string; pickupTimeFrom: string; pickupTimeTo: string }[];
+  pickupZones: { id: string; zoneName: string; hotelName: string; pickupFrom?: string; pickupTo?: string; pickupTimeFrom?: string; pickupTimeTo?: string }[];
 };
 
 export default function DayTripDetails() {
@@ -101,18 +102,28 @@ export default function DayTripDetails() {
           )}
 
           <div>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {highlights.map((h, i) => (
-                <span key={h.id ?? i} className="px-3 py-1 bg-brand-primary/10 text-brand-primary rounded-full text-xs font-medium">{h.text}</span>
-              ))}
-            </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{trip.title}</h1>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
+            <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
               <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{trip.region}</span>
               <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{trip.duration.replace('_', ' ')}</span>
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${trip.tripType === 'SHARED' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{trip.tripType}</span>
+              {trip.maxPax > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Max {trip.maxPax} pax</span>}
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${trip.availabilityMode === 'on_request' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                {trip.availabilityMode === 'on_request' ? 'On Request' : 'Always Available'}
+              </span>
             </div>
           </div>
+
+          {highlights.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Key Highlights</h2>
+              <div className="flex flex-wrap gap-2">
+                {highlights.map((h, i) => (
+                  <span key={h.id ?? i} className="px-3 py-1.5 bg-brand-primary/10 text-brand-primary rounded-full text-xs font-medium">{h.text}</span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {trip.description && (
             <div>
@@ -182,6 +193,14 @@ export default function DayTripDetails() {
         <div className="space-y-4">
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm sticky top-4">
             <p className="text-2xl font-bold text-gray-900 mb-1">{fmt(trip.adultPriceCents)} <span className="text-sm font-normal text-gray-400">/ adult</span></p>
+            {trip.childPriceCents > 0 && (
+              <p className="text-sm text-gray-600">{fmt(trip.childPriceCents)} <span className="text-xs text-gray-400">/ child</span></p>
+            )}
+            <div className="mt-2 space-y-0.5 text-xs text-gray-500">
+              {trip.pricePerVehicleCents > 0 && <p>Per vehicle: <span className="font-medium text-gray-700">{fmt(trip.pricePerVehicleCents)}</span></p>}
+              {trip.netRatePerPaxCents > 0 && <p>Net rate / pax: <span className="font-medium text-gray-700">{fmt(trip.netRatePerPaxCents)}</span></p>}
+              {trip.markupPct > 0 && <p>Default markup: <span className="font-medium text-gray-700">{trip.markupPct}%</span></p>}
+            </div>
 
             {/* Pax selectors */}
             <div className="space-y-3 mt-4">
@@ -226,6 +245,12 @@ export default function DayTripDetails() {
 
             {/* Summary */}
             <div className="mt-4 pt-4 border-t border-gray-100 space-y-2 text-sm">
+              {adults > 0 && (
+                <div className="flex justify-between text-gray-600"><span>Adults ({adults} × {fmt(trip.adultPriceCents)})</span><span>{fmt(trip.adultPriceCents * adults)}</span></div>
+              )}
+              {children > 0 && (
+                <div className="flex justify-between text-gray-600"><span>Children ({children} × {fmt(trip.childPriceCents ?? trip.adultPriceCents)})</span><span>{fmt((trip.childPriceCents ?? trip.adultPriceCents) * children)}</span></div>
+              )}
               <div className="flex justify-between text-gray-600"><span>Net cost ({pax} pax)</span><span>{fmt(net)}</span></div>
               <div className="flex justify-between text-gray-600"><span>VAT 15%</span><span>{fmt(vat)}</span></div>
               {markupAmt > 0 && <div className="flex justify-between text-gray-600"><span>Markup {markup}%</span><span>{fmt(markupAmt)}</span></div>}
@@ -251,14 +276,19 @@ export default function DayTripDetails() {
             {pickupZones.length > 0 && (
               <div className="mt-5 pt-4 border-t border-gray-100">
                 <p className="text-xs font-semibold text-gray-700 mb-3">Pickup Zones</p>
-                <div className="space-y-2">
-                  {pickupZones.map(z => (
-                    <div key={z.id} className="text-xs text-gray-600">
-                      <p className="font-medium">{z.zoneName}</p>
-                      {z.hotelName && <p className="text-gray-400">{z.hotelName}</p>}
-                      {z.pickupTimeFrom && <p className="text-gray-400">{z.pickupTimeFrom}{z.pickupTimeTo ? ` – ${z.pickupTimeTo}` : ''}</p>}
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  {pickupZones.map(z => {
+                    const from = z.pickupFrom ?? z.pickupTimeFrom;
+                    const to = z.pickupTo ?? z.pickupTimeTo;
+                    return (
+                      <div key={z.id} className="text-xs text-gray-600 space-y-0.5">
+                        <p className="font-medium text-gray-800">{z.zoneName}</p>
+                        {z.hotelName && <p className="text-gray-500">Hotel: {z.hotelName}</p>}
+                        {from && <p className="text-gray-500">From: {from}</p>}
+                        {to && <p className="text-gray-500">To: {to}</p>}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -59,7 +59,10 @@ export default function AddTour() {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch('/api/v1/uploads', {
+      fd.append('folder', 'tours');
+      // The backend's multipart upload route is /uploads/image (the older
+      // /uploads endpoint was a presign helper that 404'd for raw multipart).
+      const res = await fetch('/api/v1/uploads/image', {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         body: fd,
@@ -97,9 +100,14 @@ export default function AddTour() {
         excludes: form.excludes ? form.excludes.split('\n').filter(Boolean) : undefined,
         importantNotes: form.importantNotes ? form.importantNotes.split('\n').filter(Boolean) : undefined,
         coverImageUrl: form.coverImageUrl || undefined,
-        status: form.status as any,
+        // The backend Tour entity has no separate `availabilityMode` column —
+        // ON_REQUEST is part of the TourStatus enum. Translate the admin's
+        // Availability picker into the status when they chose "On Request".
+        // (This was AM_033: "On request" availability not working.)
+        status: (form.availabilityMode === 'on_request'
+                 ? 'ON_REQUEST'
+                 : form.status) as any,
         theme: form.theme as any,
-        availabilityMode: form.availabilityMode as any,
         itineraryStops: itinerary.filter(r => r.title).map((r, i) => ({
           stopTime: r.stopTime, title: r.title, description: r.description, sortOrder: i,
         })),

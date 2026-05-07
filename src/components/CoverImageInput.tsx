@@ -99,8 +99,11 @@ export default function CoverImageInput({ value, onChange, folder = 'cars' }: Pr
         onChange={e => handleFile(e.target.files?.[0])}
       />
 
+      {/* type=text (not url) — uploads return a same-origin path like
+          "/api/v1/uploads/files/..." which the browser's HTML5 URL validator
+          rejects, blocking form submit after a successful upload. */}
       <input
-        type="url"
+        type="text"
         placeholder="…or paste an image URL"
         value={value}
         onChange={e => onChange(e.target.value)}

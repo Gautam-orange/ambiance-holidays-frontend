@@ -18,6 +18,7 @@ export default function TourDetails() {
   const [error, setError] = useState('');
   const [paxAdults, setPaxAdults] = useState(2);
   const [paxChildren, setPaxChildren] = useState(0);
+  const [paxInfants, setPaxInfants] = useState(0);
   const [markup, setMarkup] = useState('');
   const [selectedZoneId, setSelectedZoneId] = useState('');
   const [adding, setAdding] = useState(false);
@@ -47,7 +48,8 @@ export default function TourDetails() {
 
   const adultTotal = tour.adultPriceCents * paxAdults;
   const childTotal = tour.childPriceCents * paxChildren;
-  const subtotal = adultTotal + childTotal + zoneExtra;
+  const infantTotal = (tour.infantPriceCents ?? 0) * paxInfants;
+  const subtotal = adultTotal + childTotal + infantTotal + zoneExtra;
   const markupAmt = Math.round(subtotal * markupPct / 100);
   const grandTotal = subtotal + markupAmt;
 
@@ -65,12 +67,18 @@ export default function TourDetails() {
     const pickupLocation = zoneObj?.zoneName ?? undefined;
     try {
       await addToCart({
+        // Backend resolvePrice for TOUR returns the total for the whole booking
+        // group (adultPrice*adults + childPrice*children + infantPrice*infants),
+        // so this is one cart line — quantity must be 1. Sending paxAdults here
+        // multiplied the line total by adult-count (e.g. 4×4500 = 18000 instead
+        // of 4500). See QA AM_? "tour add-to-cart pricing math".
         itemType: 'TOUR',
         refId: tour.id,
-        quantity: paxAdults,
+        quantity: 1,
         options: {
           paxAdults,
           paxChildren,
+          paxInfants,
           markupPercent: markupPct || undefined,
           pickupZoneId: selectedZoneId || undefined,
           pickupLocation,
@@ -237,6 +245,20 @@ export default function TourDetails() {
                   <button onClick={() => setPaxChildren(p => Math.max(0, p - 1))} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">−</button>
                   <span className="font-bold text-slate-800 w-6 text-center">{paxChildren}</span>
                   <button onClick={() => setPaxChildren(p => p + 1)} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">+</button>
+                </div>
+              </div>
+            )}
+
+            {/* Infants — shown when admin configured an infant price (often 0). */}
+            {(tour.infantPriceCents ?? 0) >= 0 && tour.infantPriceCents !== undefined && (
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                  Infants {tour.infantPriceCents > 0 ? `— ${fmt(tour.infantPriceCents)} each` : '— Free'}
+                </label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setPaxInfants(p => Math.max(0, p - 1))} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">−</button>
+                  <span className="font-bold text-slate-800 w-6 text-center">{paxInfants}</span>
+                  <button onClick={() => setPaxInfants(p => p + 1)} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50">+</button>
                 </div>
               </div>
             )}
