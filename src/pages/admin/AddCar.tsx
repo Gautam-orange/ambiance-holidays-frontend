@@ -1,37 +1,35 @@
-import React, { useState } from 'react';
-import { Upload, Plus, ChevronDown, AlertCircle, CheckCircle2, X, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Plus, ChevronDown, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
-import carsApi, { CarCategory, CarUsageType, CarRateRequest, RatePeriod } from '../../api/cars';
+import carsApi, { CarCategory, CarUsageType, CarStatus, CarRateRequest, RatePeriod, SupplierOption } from '../../api/cars';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CoverImageInput from '../../components/CoverImageInput';
 
 const CATEGORIES: CarCategory[] = ['ECONOMY', 'STANDARD', 'PREMIUM', 'LUXURY', 'SUV', 'MINIVAN'];
+const STATUSES: CarStatus[] = ['ACTIVE', 'INACTIVE', 'MAINTENANCE'];
 
-interface RateRow {
-  period: RatePeriod;
-  amountEur: string;
-  kmFrom: string;
-  kmTo: string;
-}
+interface RentalRow { period: 'DAILY' | 'WEEKLY' | 'MONTHLY'; amountUsd: string }
+interface TransferBand { amountUsd: string; kmFrom: string; kmTo: string }
 
-const DEFAULT_RENTAL_RATES: RateRow[] = [
-  { period: 'DAILY', amountEur: '', kmFrom: '', kmTo: '' },
-  { period: 'WEEKLY', amountEur: '', kmFrom: '', kmTo: '' },
-  { period: 'MONTHLY', amountEur: '', kmFrom: '', kmTo: '' },
+const DEFAULT_RENTAL_ROWS: RentalRow[] = [
+  { period: 'DAILY', amountUsd: '' },
+  { period: 'WEEKLY', amountUsd: '' },
+  { period: 'MONTHLY', amountUsd: '' },
 ];
-const DEFAULT_TRANSFER_RATES: RateRow[] = [
-  { period: 'PER_KM', amountEur: '', kmFrom: '0', kmTo: '20' },
-  { period: 'PER_KM', amountEur: '', kmFrom: '21', kmTo: '150' },
-  { period: 'PER_KM', amountEur: '', kmFrom: '151', kmTo: '' },
+const DEFAULT_TRANSFER_BANDS: TransferBand[] = [
+  { amountUsd: '', kmFrom: '0', kmTo: '20' },
+  { amountUsd: '', kmFrom: '21', kmTo: '150' },
+  { amountUsd: '', kmFrom: '151', kmTo: '' },
 ];
 
 export default function AddCar() {
   const navigate = useNavigate();
-  const [usageType, setUsageType] = useState<'RENTAL' | 'TRANSFER' | 'BOTH'>('RENTAL');
+  const [usageType, setUsageType] = useState<CarUsageType>('RENTAL');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
 
   const [form, setForm] = useState({
     registrationNo: '',
@@ -48,80 +46,68 @@ export default function AddCar() {
     coverImageUrl: '',
     includes: '',
     excludes: '',
+    supplierId: '',
+    status: 'ACTIVE' as CarStatus,
   });
 
-  const [rentalRates, setRentalRates] = useState<RateRow[]>(DEFAULT_RENTAL_RATES.map(r => ({ ...r })));
-  const [transferRates, setTransferRates] = useState<RateRow[]>(DEFAULT_TRANSFER_RATES.map(r => ({ ...r })));
+  const [rentalRows, setRentalRows] = useState<RentalRow[]>(DEFAULT_RENTAL_ROWS.map(r => ({ ...r })));
+  const [transferBands, setTransferBands] = useState<TransferBand[]>(DEFAULT_TRANSFER_BANDS.map(r => ({ ...r })));
+  const [extraServices, setExtraServices] = useState<{ name: string; priceUsd: string }[]>([]);
 
-  // Extra services
-  const [extraServices, setExtraServices] = useState<{ name: string; price: string }[]>([]);
-  const addExtraService    = () => setExtraServices(s => [...s, { name: '', price: '' }]);
+  // Load supplier dropdown options once
+  useEffect(() => {
+    carsApi.listSuppliers()
+      .then(r => setSuppliers(r.data.data ?? []))
+      .catch(() => { /* admins may not have permission yet — just hide picker */ });
+  }, []);
+
+  const addExtraService    = () => setExtraServices(s => [...s, { name: '', priceUsd: '' }]);
   const removeExtraService = (i: number) => setExtraServices(s => s.filter((_, idx) => idx !== i));
-  const updateExtraService = (i: number, field: 'name' | 'price', val: string) =>
+  const updateExtraService = (i: number, field: 'name' | 'priceUsd', val: string) =>
     setExtraServices(s => s.map((sv, idx) => idx === i ? { ...sv, [field]: val } : sv));
 
-  const field = (key: keyof typeof form) => ({
-    value: String(form[key]),
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-      setForm(f => ({ ...f, [key]: e.target.value })),
-  });
+  const showRental   = usageType === 'RENTAL'   || usageType === 'BOTH';
+  const showTransfer = usageType === 'TRANSFER' || usageType === 'BOTH';
 
-  const activeRates = usageType === 'TRANSFER' ? transferRates : rentalRates;
-  const setActiveRates = usageType === 'TRANSFER' ? setTransferRates : setRentalRates;
+  const updateRentalRow = (idx: number, amountUsd: string) =>
+    setRentalRows(prev => prev.map((r, i) => i === idx ? { ...r, amountUsd } : r));
+  const updateTransferBand = (idx: number, key: keyof TransferBand, value: string) =>
+    setTransferBands(prev => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r));
 
-  const updateRate = (idx: number, key: keyof RateRow, value: string) => {
-    setActiveRates(prev => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r));
-  };
+  /** Mirror of backend `validateRates` so admins see errors inline. */
+  const validateClientSide = (): string | null => {
+    const filledRental = rentalRows.filter(r => r.amountUsd.trim() !== '');
+    const filledTransfer = transferBands.filter(r => r.amountUsd.trim() !== '');
 
-  /**
-   * Mirror of backend `validateRates`. Catches problems before round-tripping
-   * to the server so the admin sees a clear error inline.
-   */
-  const validateRatesClientSide = (): string | null => {
-    const filled = activeRates.filter(r => r.amountEur.trim() !== '');
-    const isTransfer = usageType === 'TRANSFER' || usageType === 'BOTH';
-
-    if (filled.length === 0) {
-      return 'At least one rate with a non-zero price is required.';
-    }
-    // Per-row checks
-    for (let i = 0; i < filled.length; i++) {
-      const r = filled[i];
-      const amt = parseFloat(r.amountEur);
-      if (Number.isNaN(amt) || amt <= 0) {
-        return `Rate row ${i + 1}: price must be greater than zero.`;
+    if (showRental) {
+      const hasDaily = filledRental.some(r => r.period === 'DAILY' && Number(r.amountUsd) > 0);
+      if (!hasDaily) return 'Rental cars need at least a DAILY rate.';
+      for (const r of filledRental) {
+        const amt = parseFloat(r.amountUsd);
+        if (Number.isNaN(amt) || amt <= 0) return `${r.period} rate must be greater than zero.`;
       }
-      if (r.period === 'PER_KM') {
+    }
+    if (showTransfer) {
+      if (filledTransfer.length === 0) {
+        return 'Transfer-eligible cars need at least one PER_KM rate band.';
+      }
+      for (let i = 0; i < filledTransfer.length; i++) {
+        const r = filledTransfer[i];
+        const amt = parseFloat(r.amountUsd);
+        if (Number.isNaN(amt) || amt <= 0) return `Transfer band ${i + 1}: price must be greater than zero.`;
         const from = r.kmFrom.trim() ? parseInt(r.kmFrom) : 0;
         const to = r.kmTo.trim() ? parseInt(r.kmTo) : null;
-        if (Number.isNaN(from) || from < 0) {
-          return `Transfer band ${i + 1}: From-km cannot be negative.`;
-        }
-        if (to !== null && (Number.isNaN(to) || to <= from)) {
-          return `Transfer band ${i + 1}: To-km must be greater than From-km.`;
-        }
+        if (Number.isNaN(from) || from < 0) return `Transfer band ${i + 1}: From-km cannot be negative.`;
+        if (to !== null && (Number.isNaN(to) || to <= from)) return `Transfer band ${i + 1}: To-km must be greater than From-km.`;
       }
-    }
-
-    if (isTransfer) {
-      const perKm = filled.filter(r => r.period === 'PER_KM');
-      if (perKm.length === 0) {
-        return 'Transfer-eligible cars need at least one priced rate band (e.g. 0–20 km).';
-      }
-      // Overlap check: sort by kmFrom and ensure no band's start ≤ previous's end.
-      const sorted = [...perKm].sort((a, b) => {
-        const af = a.kmFrom.trim() ? parseInt(a.kmFrom) : 0;
-        const bf = b.kmFrom.trim() ? parseInt(b.kmFrom) : 0;
-        return af - bf;
-      });
+      // Overlap check
+      const sorted = [...filledTransfer].sort((a, b) => (parseInt(a.kmFrom || '0')) - (parseInt(b.kmFrom || '0')));
       for (let i = 1; i < sorted.length; i++) {
         const prev = sorted[i - 1];
         const curr = sorted[i];
         const prevTo = prev.kmTo.trim() ? parseInt(prev.kmTo) : Number.MAX_SAFE_INTEGER;
         const currFrom = curr.kmFrom.trim() ? parseInt(curr.kmFrom) : 0;
-        if (currFrom <= prevTo) {
-          return `Transfer bands overlap: band ending at ${prevTo} km conflicts with band starting at ${currFrom} km.`;
-        }
+        if (currFrom <= prevTo) return `Transfer bands overlap at ${prevTo}–${currFrom} km.`;
       }
     }
     return null;
@@ -131,35 +117,41 @@ export default function AddCar() {
     e.preventDefault();
     setError('');
 
-    const validationError = validateRatesClientSide();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    const validationError = validateClientSide();
+    if (validationError) { setError(validationError); return; }
 
-    const rates: CarRateRequest[] = activeRates
-      .filter(r => r.amountEur.trim() !== '')
-      .map(r => ({
-        period: r.period,
-        amountCents: Math.round(parseFloat(r.amountEur) * 100),
-        kmFrom: r.kmFrom ? parseInt(r.kmFrom) : undefined,
-        kmTo: r.kmTo ? parseInt(r.kmTo) : undefined,
-      }));
+    // Build a single rates list that contains BOTH rental periods and transfer
+    // bands for BOTH-usage cars — fixes the prior bug where only the active tab
+    // was submitted.
+    const rates: CarRateRequest[] = [];
+    if (showRental) {
+      for (const r of rentalRows) {
+        if (!r.amountUsd.trim()) continue;
+        rates.push({
+          period: r.period as RatePeriod,
+          amountCents: Math.round(parseFloat(r.amountUsd) * 100),
+        });
+      }
+    }
+    if (showTransfer) {
+      for (const r of transferBands) {
+        if (!r.amountUsd.trim()) continue;
+        rates.push({
+          period: 'PER_KM',
+          amountCents: Math.round(parseFloat(r.amountUsd) * 100),
+          kmFrom: r.kmFrom ? parseInt(r.kmFrom) : undefined,
+          kmTo: r.kmTo ? parseInt(r.kmTo) : undefined,
+        });
+      }
+    }
 
     setIsLoading(true);
     try {
-      // Encode extra services as "XSVC:Name:PriceCents" in the includes array
-      const xsvcEntries = extraServices
-        .filter(s => s.name.trim())
-        .map(s => `XSVC:${s.name.trim()}:${Math.round((parseFloat(s.price) || 0) * 100)}`);
-
-      const regularIncludes = form.includes ? form.includes.split('\n').filter(Boolean) : [];
-
       await carsApi.create({
         registrationNo: form.registrationNo,
         name: form.name,
         category: form.category,
-        usageType: usageType as CarUsageType,
+        usageType,
         year: Number(form.year),
         passengerCapacity: Number(form.passengerCapacity),
         luggageCapacity: form.luggageCapacity ? Number(form.luggageCapacity) : undefined,
@@ -169,9 +161,18 @@ export default function AddCar() {
         color: form.color || undefined,
         description: form.description || undefined,
         coverImageUrl: form.coverImageUrl || undefined,
-        includes: [...regularIncludes, ...xsvcEntries],
-        excludes: form.excludes ? form.excludes.split('\n').filter(Boolean) : [],
+        includes: form.includes ? form.includes.split('\n').map(s => s.trim()).filter(Boolean) : [],
+        excludes: form.excludes ? form.excludes.split('\n').map(s => s.trim()).filter(Boolean) : [],
+        supplierId: form.supplierId || undefined,
+        status: form.status,
         rates,
+        // Structured add-on services — V14 migration backfilled legacy XSVC: rows.
+        extraServices: extraServices
+          .filter(s => s.name.trim())
+          .map(s => ({
+            name: s.name.trim(),
+            priceCents: Math.round((parseFloat(s.priceUsd) || 0) * 100),
+          })),
       });
       setSuccess(true);
       setTimeout(() => navigate('/admin/cars'), 1500);
@@ -234,13 +235,12 @@ export default function AddCar() {
               onChange={url => setForm(f => ({ ...f, coverImageUrl: url }))}
             />
 
-            {/* Includes / Excludes */}
             <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Includes (one per line)</label>
                 <textarea
                   rows={3}
-                  placeholder="GPS&#10;Child seat&#10;Insurance"
+                  placeholder="GPS&#10;Insurance&#10;24/7 support"
                   value={form.includes}
                   onChange={e => setForm(f => ({ ...f, includes: e.target.value }))}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary resize-none"
@@ -264,12 +264,14 @@ export default function AddCar() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Registration No *</label>
-                <input required type="text" placeholder="MU-1234-ABC" {...field('registrationNo')}
+                <input required type="text" placeholder="MU-1234-ABC" value={form.registrationNo}
+                  onChange={e => setForm(f => ({ ...f, registrationNo: e.target.value }))}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Car Name *</label>
-                <input required type="text" placeholder="e.g. BMW X7" {...field('name')}
+                <input required type="text" placeholder="e.g. BMW X7" value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium" />
               </div>
               <div className="space-y-2">
@@ -283,23 +285,38 @@ export default function AddCar() {
                 </div>
               </div>
               <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Status *</label>
+                <div className="relative">
+                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as CarStatus }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium appearance-none">
+                    {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>)}
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+              <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Year *</label>
-                <input required type="number" min={1990} max={2030} {...field('year')}
+                <input required type="number" min={1990} max={2030} value={form.year}
+                  onChange={e => setForm(f => ({ ...f, year: Number(e.target.value) }))}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Passengers *</label>
-                <input required type="number" min={1} max={30} {...field('passengerCapacity')}
+                <input required type="number" min={1} max={30} value={form.passengerCapacity}
+                  onChange={e => setForm(f => ({ ...f, passengerCapacity: Number(e.target.value) }))}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Luggage Capacity</label>
-                <input type="number" min={0} {...field('luggageCapacity')} placeholder="e.g. 3"
+                <input type="number" min={0} value={form.luggageCapacity}
+                  onChange={e => setForm(f => ({ ...f, luggageCapacity: e.target.value }))}
+                  placeholder="e.g. 3"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Color</label>
-                <input type="text" placeholder="Black" {...field('color')}
+                <input type="text" placeholder="Black" value={form.color}
+                  onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium" />
               </div>
               <div className="space-y-2">
@@ -312,6 +329,19 @@ export default function AddCar() {
                   <ChevronDown className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
               </div>
+              {suppliers.length > 0 && (
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Supplier</label>
+                  <div className="relative">
+                    <select value={form.supplierId} onChange={e => setForm(f => ({ ...f, supplierId: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium appearance-none">
+                      <option value="">— None —</option>
+                      {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -321,75 +351,79 @@ export default function AddCar() {
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium resize-none" />
             </div>
 
-            {/* Pricing Rates */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            {/* Rental rates — shown for RENTAL and BOTH */}
+            {showRental && (
+              <div className="space-y-3 pt-6 border-t border-slate-100">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Pricing Rates ($) — {usageType === 'TRANSFER' ? 'Per-KM bands (required)' : usageType === 'BOTH' ? 'Time-based + Per-KM bands' : 'Time-based'}
+                  Rental Rates ($) — {usageType === 'BOTH' ? 'Time-based pricing for car rentals' : 'Time-based pricing'}
                 </label>
-                {(usageType === 'TRANSFER' || usageType === 'BOTH') && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveRates(prev => [...prev, { period: 'PER_KM', amountEur: '', kmFrom: '', kmTo: '' }])}
-                    className="text-[11px] font-bold text-brand-primary hover:underline flex items-center gap-1"
-                  >
+                <p className="text-[11px] text-slate-500">Daily is required. Weekly/Monthly are auto-applied for rentals ≥ 7 / 28 days when set.</p>
+                <div className="space-y-2">
+                  {rentalRows.map((row, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <div className="w-28 text-xs font-bold text-slate-500 uppercase tracking-wider">{row.period}</div>
+                      <div className="flex-1 relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">$</span>
+                        <input type="number" min={0} step={0.01} placeholder="0.00"
+                          value={row.amountUsd}
+                          onChange={e => updateRentalRow(idx, e.target.value)}
+                          className="w-full pl-7 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Transfer bands — shown for TRANSFER and BOTH */}
+            {showTransfer && (
+              <div className="space-y-3 pt-6 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Transfer Per-KM Bands ($) {usageType === 'BOTH' && '— Distance-based pricing for transfers'}
+                  </label>
+                  <button type="button"
+                    onClick={() => setTransferBands(prev => [...prev, { amountUsd: '', kmFrom: '', kmTo: '' }])}
+                    className="text-[11px] font-bold text-brand-primary hover:underline flex items-center gap-1">
                     <Plus className="w-3 h-3" /> Add band
                   </button>
-                )}
-              </div>
-              {(usageType === 'TRANSFER' || usageType === 'BOTH') && (
-                <p className="text-[11px] text-slate-500 -mt-2">
-                  Bands must not overlap. Leave the last band's "to" blank for "and above".
-                </p>
-              )}
-              <div className="space-y-3">
-                {activeRates.map((rate, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <div className="w-28 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      {rate.period === 'PER_KM'
-                        ? `${rate.kmFrom || '0'}–${rate.kmTo || '∞'} km`
-                        : rate.period}
+                </div>
+                <p className="text-[11px] text-slate-500">Bands must not overlap. Leave the last "to" blank for "and above".</p>
+                <div className="space-y-2">
+                  {transferBands.map((band, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <div className="w-28 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        {band.kmFrom || '0'}–{band.kmTo || '∞'} km
+                      </div>
+                      <div className="flex-1 relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">$</span>
+                        <input type="number" min={0} step={0.01} placeholder="0.00"
+                          value={band.amountUsd}
+                          onChange={e => updateTransferBand(idx, 'amountUsd', e.target.value)}
+                          className="w-full pl-7 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium" />
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <input type="number" min={0} placeholder="from" value={band.kmFrom}
+                          onChange={e => updateTransferBand(idx, 'kmFrom', e.target.value)}
+                          className="w-16 px-2 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center" />
+                        <span>to</span>
+                        <input type="number" min={0} placeholder="∞" value={band.kmTo}
+                          onChange={e => updateTransferBand(idx, 'kmTo', e.target.value)}
+                          className="w-16 px-2 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center" />
+                      </div>
+                      {transferBands.length > 1 && (
+                        <button type="button"
+                          onClick={() => setTransferBands(prev => prev.filter((_, i) => i !== idx))}
+                          className="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-300 flex items-center justify-center transition-colors"
+                          aria-label="Remove band">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
-                    <div className="flex-1 relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">$</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.00"
-                        value={rate.amountEur}
-                        onChange={e => updateRate(idx, 'amountEur', e.target.value)}
-                        className="w-full pl-7 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium"
-                      />
-                    </div>
-                    {rate.period === 'PER_KM' && (
-                      <>
-                        <div className="flex items-center gap-2 text-xs text-slate-400">
-                          <input type="number" min={0} placeholder="from"
-                            value={rate.kmFrom} onChange={e => updateRate(idx, 'kmFrom', e.target.value)}
-                            className="w-16 px-2 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center" />
-                          <span>to</span>
-                          <input type="number" min={0} placeholder="∞"
-                            value={rate.kmTo} onChange={e => updateRate(idx, 'kmTo', e.target.value)}
-                            className="w-16 px-2 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none text-center" />
-                        </div>
-                        {/* Allow removing extras (keep at least one band) */}
-                        {activeRates.filter(r => r.period === 'PER_KM').length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setActiveRates(prev => prev.filter((_, i) => i !== idx))}
-                            className="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-300 flex items-center justify-center transition-colors"
-                            aria-label="Remove band"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Toggles */}
             <div className="grid grid-cols-2 gap-6 pt-6 border-t border-slate-100">
@@ -409,7 +443,7 @@ export default function AddCar() {
               ))}
             </div>
 
-            {/* Extra Services */}
+            {/* Extra services — persisted in car_extra_services table (V14) */}
             <div className="space-y-4 pt-6 border-t border-slate-100">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Extra Services</label>
@@ -424,24 +458,16 @@ export default function AddCar() {
                 <div className="space-y-2">
                   {extraServices.map((svc, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Service name (e.g. Child Seat)"
+                      <input type="text" placeholder="Service name (e.g. Child Seat)"
                         value={svc.name}
                         onChange={e => updateExtraService(i, 'name', e.target.value)}
-                        className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-primary outline-none"
-                      />
+                        className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-primary outline-none" />
                       <div className="relative w-28">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          placeholder="0.00"
-                          value={svc.price}
-                          onChange={e => updateExtraService(i, 'price', e.target.value)}
-                          className="w-full pl-7 pr-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-primary outline-none"
-                        />
+                        <input type="number" min={0} step={0.01} placeholder="0.00"
+                          value={svc.priceUsd}
+                          onChange={e => updateExtraService(i, 'priceUsd', e.target.value)}
+                          className="w-full pl-7 pr-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-primary outline-none" />
                       </div>
                       <button type="button" onClick={() => removeExtraService(i)}
                         className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">

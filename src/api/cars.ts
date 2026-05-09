@@ -35,6 +35,7 @@ export interface Car {
   supplierName?: string;
   supplierId?: string;
   rates: CarRate[];
+  extraServices?: CarExtraService[];
   createdAt: string;
 }
 
@@ -43,6 +44,18 @@ export interface CarRateRequest {
   amountCents: number;
   kmFrom?: number;
   kmTo?: number;
+}
+
+export interface CarExtraServiceRequest {
+  name: string;
+  priceCents: number;
+}
+
+export interface CarExtraService {
+  id: string;
+  name: string;
+  priceCents: number;
+  displayOrder: number;
 }
 
 export interface CarRequest {
@@ -64,6 +77,13 @@ export interface CarRequest {
   excludes?: string[];
   supplierId?: string;
   rates: CarRateRequest[];
+  extraServices?: CarExtraServiceRequest[];
+  status?: CarStatus;
+}
+
+export interface SupplierOption {
+  id: string;
+  name: string;
 }
 
 export interface PageMeta {
@@ -131,11 +151,14 @@ const carsApi = {
     apiClient.delete(`/admin/cars/availability/${availabilityId}`),
 
   // Catalog (public)
-  catalogList: (params?: { page?: number; size?: number; category?: string; minPax?: number }) =>
+  catalogList: (params?: { page?: number; size?: number; category?: string; minPax?: number; dateFrom?: string; dateTo?: string }) =>
     apiClient.get<{ success: boolean; data: CarsPage }>('/catalog/cars', { params }),
 
   catalogGet: (id: string) =>
     apiClient.get<{ success: boolean; data: Car }>(`/catalog/cars/${id}`),
+
+  listSuppliers: () =>
+    apiClient.get<{ success: boolean; data: SupplierOption[] }>('/admin/suppliers'),
 };
 
 export default carsApi;

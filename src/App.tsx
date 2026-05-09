@@ -37,7 +37,6 @@ import TourDetails from './pages/TourDetails';
 import DayTrips from './pages/DayTrips';
 import DayTripDetails from './pages/DayTripDetails';
 import Transfers from './pages/Transfers';
-import TransferDetails from './pages/TransferDetails';
 import Accommodation from './pages/Accommodation';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
@@ -109,7 +108,10 @@ export default function App() {
           <Route path="day-trips" element={<DayTrips />} />
           <Route path="day-trips/:slug" element={<DayTripDetails />} />
           <Route path="transfers" element={<Transfers />} />
-          <Route path="transfers/:id" element={<TransferDetails />} />
+          {/* /transfers/:id read from legacy transfer_routes table — admin has
+              no UI to manage routes there, so the page can show stale prices.
+              Redirect any old links back to the live distance-based flow. */}
+          <Route path="transfers/:id" element={<Navigate to="/transfers" replace />} />
           <Route path="accommodation" element={<Accommodation />} />
           <Route path="cart" element={<CartPage />} />
           <Route path="checkout" element={<CheckoutPage />} />

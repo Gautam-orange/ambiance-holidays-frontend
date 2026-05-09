@@ -20,21 +20,27 @@ const FEATURE_ICONS: Record<string, React.ElementType> = {
   'Air Conditioning': Settings2,
 };
 
-/** Parse XSVC:Name:PriceCents entries from the includes array */
-function parseExtraServices(includes: string[]): { name: string; priceCents: number }[] {
-  return includes
+/**
+ * Read add-on services from the structured `extraServices` field. The legacy
+ * XSVC:Name:PriceCents encoding inside `includes` was migrated into the
+ * car_extra_services table by V14 — but historic cart items pre-migration may
+ * still carry it, so we fall back to parsing `includes` if extraServices is
+ * empty.
+ */
+function readExtraServices(car: Car): { name: string; priceCents: number }[] {
+  if (Array.isArray(car.extraServices) && car.extraServices.length > 0) {
+    return car.extraServices.map(e => ({ name: e.name, priceCents: e.priceCents }));
+  }
+  return (car.includes ?? [])
     .filter(s => s.startsWith('XSVC:'))
     .map(s => {
       const parts = s.split(':');
-      return {
-        name: parts[1] ?? '',
-        priceCents: parseInt(parts[2] ?? '0', 10) || 0,
-      };
+      return { name: parts[1] ?? '', priceCents: parseInt(parts[2] ?? '0', 10) || 0 };
     })
     .filter(s => s.name.trim() !== '');
 }
 
-/** Strip XSVC entries — these are shown separately as selectable services */
+/** Inclusions list — strip any historic XSVC: entries before display. */
 function regularIncludes(includes: string[]): string[] {
   return includes.filter(s => !s.startsWith('XSVC:'));
 }
@@ -117,8 +123,9 @@ export default function CarRentalDetails() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Derived: parse extra services & regular includes
-  const extraServices = useMemo(() => parseExtraServices(car?.includes ?? []), [car]);
+  // Derived: extra services come from the dedicated table; standardIncludes is
+  // the cleaned-up list of "What's Included" bullets.
+  const extraServices = useMemo(() => car ? readExtraServices(car) : [], [car]);
   const standardIncludes = useMemo(() => regularIncludes(car?.includes ?? []), [car]);
 
   // Toggle an extra service on/off

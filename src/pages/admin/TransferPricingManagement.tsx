@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Check, X, DollarSign, Ruler } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, DollarSign, Ruler, AlertTriangle, Car as CarIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import apiClient from '../../api/client';
 
 interface Tier {
@@ -207,6 +208,26 @@ export default function TransferPricingManagement() {
       {error && (
         <div className="bg-red-50 text-red-600 border border-red-200 rounded-xl p-4 text-sm mb-6">{error}</div>
       )}
+
+      {/* DEPRECATED — these tiers are no longer used by the live transfer
+          booking flow. Transfer prices come from each Car's PER_KM rate bands
+          (managed on the Car Rental page). Tiers below are retained for the
+          legacy fallback in CartService and for historical reference only. */}
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-8 flex gap-3 text-sm text-amber-800">
+        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
+        <div className="flex-1 space-y-2">
+          <p className="font-bold">Deprecated — transfer prices live on each car</p>
+          <p>
+            The transfer booking flow now reads PER-KM rate bands from each individual car
+            (Car Rental → Add/Edit Car → Pricing Rates). The tiers below are retained for
+            legacy carts and historical reference only — edits here will not affect new
+            customer transfer bookings.
+          </p>
+          <Link to="/admin/cars" className="inline-flex items-center gap-1.5 text-amber-900 font-bold underline underline-offset-4 hover:text-amber-700">
+            <CarIcon className="w-3.5 h-3.5" /> Go to Car Rental management
+          </Link>
+        </div>
+      </div>
 
       {/* How it works */}
       <div className="bg-brand-primary/5 border border-brand-primary/20 rounded-2xl p-5 mb-8 flex gap-4 text-sm text-slate-600">

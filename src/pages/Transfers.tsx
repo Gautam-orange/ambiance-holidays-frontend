@@ -75,6 +75,7 @@ export default function Transfers() {
   const [date,       setDate]       = useState(() => searchParams.get('date') ?? '');
   const [time,       setTime]       = useState('');
   const [returnDate, setReturnDate] = useState('');
+  const [returnTime, setReturnTime] = useState('');
   const [hours,      setHours]      = useState('');
 
   // Agent markup
@@ -247,6 +248,13 @@ export default function Transfers() {
           adults,
           date,
           time,
+          // Round-trip / multi-trip return leg — captured here so admin sees
+          // both legs on BookingDetails. Backend combines returnDate+returnTime
+          // into BookingItem.endAt.
+          returnDate: (tripType === 'ROUND_TRIP' || tripType === 'MULTI_TRIP') && returnDate ? returnDate : undefined,
+          returnTime: (tripType === 'ROUND_TRIP' || tripType === 'MULTI_TRIP') && returnTime ? returnTime : undefined,
+          // HOURLY duration — backend appends "Duration: N hours" to notes.
+          hours: tripType === 'HOURLY' && hours ? Number(hours) : undefined,
           distanceKm: quote.distanceKm,
           carId: selectedCarId,
           carName: selectedCar.name,
@@ -411,15 +419,24 @@ export default function Transfers() {
                 </div>
               </div>
 
-              {/* Return date */}
+              {/* Return date + time (round-trip) */}
               {(tripType === 'ROUND_TRIP' || tripType === 'MULTI_TRIP') && (
-                <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Return Date</label>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <input type="date" value={returnDate} min={date || today} onChange={e => setReturnDate(e.target.value)}
-                      className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 w-full" />
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Return Date</label>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <input type="date" value={returnDate} min={date || today} onChange={e => setReturnDate(e.target.value)}
+                        className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 w-full" />
+                    </div>
                   </div>
-                </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Return Time</label>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <input type="time" value={returnTime} onChange={e => setReturnTime(e.target.value)}
+                        className="bg-transparent border-none outline-none text-xs font-bold text-slate-700 w-full" />
+                    </div>
+                  </div>
+                </>
               )}
 
               {/* Time */}

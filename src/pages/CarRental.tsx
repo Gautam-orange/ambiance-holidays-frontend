@@ -30,8 +30,17 @@ export default function CarRental() {
   const [isLoading, setIsLoading] = useState(true);
   const heroPickup = searchParams.get('from') ?? '';
   const heroDropoff = searchParams.get('to') ?? '';
+  // Hero search params — pass through to the catalog API so visitors only see
+  // cars actually available for their dates and party size. Previously these
+  // were captured in the widget but never reached the listing query (AM_014).
+  const dateFrom = searchParams.get('date') ?? undefined;
+  const dateTo = searchParams.get('dropoffDate') ?? dateFrom;
+  const heroAdults = searchParams.get('adults');
 
-  const minPax = paxOptions.size > 0 ? Math.min(...Array.from(paxOptions)) : undefined;
+  const minPaxFromFilter = paxOptions.size > 0 ? Math.min(...Array.from(paxOptions)) : undefined;
+  // Floor the pax filter to the hero's "adults" so a 5-adult search hides
+  // 4-seater economy cars even when the user hasn't ticked a Max-Pax filter.
+  const minPax = minPaxFromFilter ?? (heroAdults ? Math.max(1, Number(heroAdults)) : undefined);
   const category = categories.size === 1 ? Array.from(categories)[0] : undefined;
 
   const fetchCars = useCallback(async () => {
@@ -42,13 +51,15 @@ export default function CarRental() {
         size: 12,
         category,
         minPax,
+        dateFrom,
+        dateTo: dateTo ?? undefined,
       });
       setCars(res.data.data.items);
       setTotal(res.data.data.meta.total);
     } finally {
       setIsLoading(false);
     }
-  }, [page, category, minPax]);
+  }, [page, category, minPax, dateFrom, dateTo]);
 
   useEffect(() => { fetchCars(); }, [fetchCars]);
   useEffect(() => { setPage(0); }, [categories, paxOptions, luggageOptions]);
