@@ -6,21 +6,53 @@ import { cn } from '../../lib/utils';
 import { getDashboardStats } from '../../api/agents';
 import { formatMoney } from '../../api/bookings';
 
+interface ModuleStats {
+  currentBookings: number;
+  upcomingBookings: number;
+  revenueTotal: number;
+  revenueThisMonth: number;
+}
+
 interface DashboardData {
   bookings: { total: number; pending: number; confirmed: number; cancelled: number };
   revenue: { total: number; thisMonth: number };
   agents: { total: number; pending: number; active: number };
-  assets: { activeCars: number; activeTours: number; activeDayTrips: number };
+  modules?: {
+    carRental: ModuleStats;
+    carTransfer: ModuleStats;
+    activities: ModuleStats;
+    dayTour: ModuleStats;
+  };
+  assets: {
+    activeCars: number;
+    inactiveCars?: number;
+    activeTours: number;
+    inactiveTours?: number;
+    activeDayTrips: number;
+    inactiveDayTrips?: number;
+  };
 }
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getDashboardStats()
-      .then(setData)
-      .catch(console.error)
+      .then(d => {
+        // Defend against non-JSON responses (backend down, HTML proxy fallback,
+        // empty 200 OK) so the page renders an inline error instead of throwing
+        // and white-screening the whole admin tree.
+        if (!d || typeof d !== 'object' || !d.bookings || !d.revenue || !d.assets) {
+          setError('Dashboard data unavailable. Please check that the backend is running.');
+          return;
+        }
+        setData(d);
+      })
+      .catch(e => {
+        setError(e?.response?.data?.error?.message ?? e?.message ?? 'Failed to load dashboard');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -34,7 +66,27 @@ export default function Dashboard() {
     );
   }
 
-  const d = data!;
+  if (error || !data) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-3xl font-display font-bold text-slate-800">Dashboard</h2>
+        <div className="p-6 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800">
+          {error ?? 'Dashboard data unavailable.'}
+        </div>
+      </div>
+    );
+  }
+
+  const d = data;
+
+  // Per-module stats — backend `modules` block was added in V15-era backend.
+  // Falls back to zero so older backends still render a clean dashboard.
+  const m = d.modules ?? {
+    carRental:   { currentBookings: 0, upcomingBookings: 0, revenueTotal: 0, revenueThisMonth: 0 },
+    carTransfer: { currentBookings: 0, upcomingBookings: 0, revenueTotal: 0, revenueThisMonth: 0 },
+    activities:  { currentBookings: 0, upcomingBookings: 0, revenueTotal: 0, revenueThisMonth: 0 },
+    dayTour:     { currentBookings: 0, upcomingBookings: 0, revenueTotal: 0, revenueThisMonth: 0 },
+  };
 
   const statCards = [
     {
@@ -56,11 +108,21 @@ export default function Dashboard() {
       ],
     },
     {
-      title: 'Car Fleet',
+      title: 'Car Rental',
       link: '/admin/cars',
       icon: Car,
       metrics: [
-        { label: 'Active Cars', value: d.assets.activeCars },
+        { label: 'Current Bookings', value: m.carRental.currentBookings },
+        { label: 'Upcoming Scheduled', value: m.carRental.upcomingBookings },
+      ],
+    },
+    {
+      title: 'Car Transfer',
+      link: '/admin/cars',
+      icon: Car,
+      metrics: [
+        { label: 'Current Bookings', value: m.carTransfer.currentBookings },
+        { label: 'Upcoming Scheduled', value: m.carTransfer.upcomingBookings },
       ],
     },
     {
@@ -68,15 +130,17 @@ export default function Dashboard() {
       link: '/admin/activities',
       icon: Palmtree,
       metrics: [
-        { label: 'Active Tours', value: d.assets.activeTours },
+        { label: 'Current Bookings', value: m.activities.currentBookings },
+        { label: 'Upcoming Scheduled', value: m.activities.upcomingBookings },
       ],
     },
     {
-      title: 'Local Experiences',
+      title: 'Day Tour',
       link: '/admin/day-trips',
       icon: Palmtree,
       metrics: [
-        { label: 'Active Local Experiences', value: d.assets.activeDayTrips },
+        { label: 'Current Bookings', value: m.dayTour.currentBookings },
+        { label: 'Upcoming Scheduled', value: m.dayTour.upcomingBookings },
       ],
     },
     {
@@ -88,6 +152,19 @@ export default function Dashboard() {
         { label: 'Pending Approvals', value: d.agents.pending, highlight: d.agents.pending > 0 },
       ],
     },
+  ];
+
+  const moduleRevenue = [
+    { label: 'Car Rental',   stats: m.carRental },
+    { label: 'Car Transfer', stats: m.carTransfer },
+    { label: 'Activities',   stats: m.activities },
+    { label: 'Day Tour',     stats: m.dayTour },
+  ];
+
+  const moduleAssets = [
+    { label: 'Cars',              active: d.assets.activeCars,     inactive: d.assets.inactiveCars     ?? 0 },
+    { label: 'Activities',        active: d.assets.activeTours,    inactive: d.assets.inactiveTours    ?? 0 },
+    { label: 'Local Experiences', active: d.assets.activeDayTrips, inactive: d.assets.inactiveDayTrips ?? 0 },
   ];
 
   return (
@@ -137,7 +214,47 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Revenue by module — adds the per-module breakdown the dashboard
+          previously lumped into a single "This Month / All Time" card. */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display font-bold text-slate-800">Revenue by Module</h3>
+          <span className="text-xs text-slate-400">This Month · All Time</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {moduleRevenue.map(row => (
+            <div key={row.label} className="rounded-xl border border-slate-100 p-4 bg-slate-50/40">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{row.label}</p>
+              <p className="mt-2 text-xl font-display font-bold text-brand-primary">{formatMoney(row.stats.revenueThisMonth)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">All-time {formatMoney(row.stats.revenueTotal)}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Assets — Active vs Inactive count per inventory module. */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <h3 className="font-display font-bold text-slate-800 mb-4">Assets</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {moduleAssets.map(row => (
+            <div key={row.label} className="rounded-xl border border-slate-100 p-4 bg-slate-50/40">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{row.label}</p>
+              <div className="flex items-end justify-between mt-2">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400">Active</p>
+                  <p className="text-2xl font-display font-bold text-green-600">{row.active}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400">Inactive</p>
+                  <p className="text-2xl font-display font-bold text-slate-400">{row.inactive}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-6">
           <h3 className="font-display font-bold text-slate-800 mb-4">Booking Summary</h3>
           <div className="space-y-3">
@@ -152,20 +269,6 @@ export default function Dashboard() {
                 <span className="font-mono font-bold text-slate-800">{item.value}</span>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <h3 className="font-display font-bold text-slate-800 mb-4">Revenue</h3>
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">This Month</p>
-              <p className="text-2xl font-display font-bold text-brand-primary">{formatMoney(d.revenue.thisMonth)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">All Time</p>
-              <p className="text-xl font-display font-bold text-slate-700">{formatMoney(d.revenue.total)}</p>
-            </div>
           </div>
         </div>
 

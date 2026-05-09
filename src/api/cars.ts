@@ -24,6 +24,8 @@ export interface Car {
   luggageCapacity?: number;
   hasAc: boolean;
   automatic: boolean;
+  /** Gear count (5 / 6 / 8 etc.). Null when unknown. */
+  transmissionGears?: number | null;
   fuelType: string;
   color?: string;
   description?: string;
@@ -68,6 +70,7 @@ export interface CarRequest {
   luggageCapacity?: number;
   hasAc?: boolean;
   automatic?: boolean;
+  transmissionGears?: number;
   fuelType?: string;
   color?: string;
   description?: string;

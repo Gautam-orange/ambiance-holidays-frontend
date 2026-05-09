@@ -162,17 +162,17 @@ export default function BookingsManagement() {
           <table className="w-full text-left">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
-                {['Booking ID', 'Customer', 'WhatsApp', 'Order Type', 'Cancel Reason', 'Booking Date', 'Total', 'Status', ''].map(h => (
+                {['Booking ID', 'Agent ID', 'Customer', 'Book By', 'WhatsApp', 'Order Type', 'Cancel Reason', 'Booking Date', 'Total', 'Status', ''].map(h => (
                   <th key={h} className="px-5 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={9} className="px-6 py-12 text-center text-slate-400">Loading…</td></tr>
+                <tr><td colSpan={11} className="px-6 py-12 text-center text-slate-400">Loading…</td></tr>
               ) : bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={11} className="px-6 py-12 text-center">
                     <p className="text-slate-400 mb-2">No bookings match your filters</p>
                     <button onClick={() => setParams(new URLSearchParams())} className="text-brand-primary text-sm font-medium hover:underline">Reset filters</button>
                   </td>
@@ -187,12 +187,27 @@ export default function BookingsManagement() {
                       </span>
                     )}
                   </td>
+                  {/* Agent ID — short prefix of the agent UUID for compact display */}
+                  <td className="px-5 py-4 text-xs text-slate-500 font-mono whitespace-nowrap">
+                    {(b as any).agentId
+                      ? <span title={(b as any).agentId}>{String((b as any).agentId).slice(0, 8)}…</span>
+                      : <span className="text-slate-300">—</span>}
+                  </td>
                   <td className="px-5 py-4">
                     <p className="font-medium text-slate-800 text-sm">{b.customerName}</p>
                     <p className="text-xs text-slate-400">{b.customerEmail}</p>
                     {b.agentName && (
                       <p className="text-[10px] text-brand-primary mt-0.5">via {b.agentName}</p>
                     )}
+                  </td>
+                  {/* Book By — Agent vs Customer (direct guest checkout). */}
+                  <td className="px-5 py-4">
+                    {(() => {
+                      const t = (b as any).bookedByType as string | undefined;
+                      if (t === 'AGENT') return <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold uppercase">Agent</span>;
+                      if (t === 'CUSTOMER') return <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase">Customer</span>;
+                      return <span className="text-slate-300 text-xs">—</span>;
+                    })()}
                   </td>
                   <td className="px-5 py-4 text-sm text-slate-600">{b.customerPhone ?? '—'}</td>
                   <td className="px-5 py-4">

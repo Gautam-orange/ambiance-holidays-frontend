@@ -288,11 +288,22 @@ export default function BookingDetails() {
                   {booking.status}
                 </span>
               </div>
-              <p className="text-slate-500 text-sm mt-1">
-                Service date: <strong className="text-slate-700">{booking.serviceDate}</strong>
+              <p className="text-slate-500 text-sm mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span>Service date: <strong className="text-slate-700">{booking.serviceDate}</strong></span>
+                {booking.invoiceNumber && (
+                  <span className="text-slate-400">Invoice <strong className="text-slate-700 font-mono">{booking.invoiceNumber}</strong></span>
+                )}
+                {booking.bookedByType && (
+                  <span className={cn(
+                    'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
+                    booking.bookedByType === 'AGENT' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'
+                  )}>
+                    Booked by {booking.bookedByType.toLowerCase()}
+                  </span>
+                )}
                 {booking.createdByName && (
-                  <span className="ml-3 text-slate-400">
-                    — booked by <strong className="text-slate-600">{booking.createdByName}</strong>
+                  <span className="text-slate-400">
+                    — by <strong className="text-slate-600">{booking.createdByName}</strong>
                   </span>
                 )}
               </p>
@@ -351,28 +362,61 @@ export default function BookingDetails() {
               </div>
             )}
 
-            {/* Booking items */}
-            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-bold text-slate-800">
-                  Booking Items
-                  <span className="ml-2 text-sm font-normal text-slate-400">
-                    ({booking.items?.length ?? 0})
-                  </span>
-                </h3>
-              </div>
-              <div className="p-6 space-y-4">
-                {(booking.items ?? []).length === 0 ? (
-                  <p className="text-slate-400 text-sm">No items found</p>
-                ) : (
-                  (booking.items ?? []).map(item => (
-                    <React.Fragment key={item.id}>
-                      <ItemCard item={item} />
-                    </React.Fragment>
-                  ))
-                )}
-              </div>
-            </div>
+            {/* Booking items — grouped by item type so admins see distinct
+                Hotel / Car Rental / Car Transfer / Activities sections, each
+                with its own subtotal, like the Figma reference design. */}
+            {(() => {
+              const items = booking.items ?? [];
+              if (items.length === 0) {
+                return (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                    <h3 className="font-bold text-slate-800 mb-2">Booking Items</h3>
+                    <p className="text-slate-400 text-sm">No items found</p>
+                  </div>
+                );
+              }
+              const groupOrder = ['CAR_RENTAL', 'CAR_TRANSFER', 'TOUR', 'DAY_TRIP', 'HOTEL'] as const;
+              const groupLabels: Record<string, string> = {
+                CAR_RENTAL: 'Car Rental',
+                CAR_TRANSFER: 'Car Transfer',
+                TOUR: 'Activities',
+                DAY_TRIP: 'Local Experiences',
+                HOTEL: 'Hotel',
+              };
+              const grouped = new Map<string, BookingItem[]>();
+              for (const it of items) {
+                const k = it.itemType ?? 'OTHER';
+                grouped.set(k, [...(grouped.get(k) ?? []), it]);
+              }
+              const orderedKeys = [
+                ...groupOrder.filter(k => grouped.has(k)),
+                ...[...grouped.keys()].filter(k => !(groupOrder as readonly string[]).includes(k)),
+              ];
+              return orderedKeys.map(key => {
+                const groupItems = grouped.get(key) ?? [];
+                const groupSubtotal = groupItems.reduce((acc, x) => acc + (x.totalCents ?? 0), 0);
+                return (
+                  <div key={key} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <h3 className="font-bold text-slate-800">
+                        {groupLabels[key] ?? key.replace(/_/g, ' ')}
+                        <span className="ml-2 text-sm font-normal text-slate-400">
+                          ({groupItems.length})
+                        </span>
+                      </h3>
+                      <span className="text-sm font-bold text-slate-700">{formatMoney(groupSubtotal)}</span>
+                    </div>
+                    <div className="p-6 space-y-4">
+                      {groupItems.map(item => (
+                        <React.Fragment key={item.id}>
+                          <ItemCard item={item} />
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
 
             {/* Special requests */}
             {booking.specialRequests && (

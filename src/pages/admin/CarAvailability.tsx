@@ -93,6 +93,14 @@ export default function CarAvailability() {
           <button onClick={() => nav(1)} className="p-2 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-all">
             <ChevronRight className="w-5 h-5 text-slate-500" />
           </button>
+          {/* "Today" — quick jump back to the current month/year for admins
+              who paged forward to view scheduling. */}
+          <button
+            onClick={() => { const d = new Date(); setYear(d.getFullYear()); setMonth(d.getMonth() + 1); }}
+            disabled={year === now.getFullYear() && month === now.getMonth() + 1}
+            className="px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 text-slate-600 hover:bg-brand-primary/5 hover:border-brand-primary hover:text-brand-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            Today
+          </button>
         </div>
       </div>
 

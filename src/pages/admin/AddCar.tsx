@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, ChevronDown, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
+import { Plus, ChevronDown, AlertCircle, CheckCircle2, Trash2, X } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import carsApi, { CarCategory, CarUsageType, CarStatus, CarRateRequest, RatePeriod, SupplierOption } from '../../api/cars';
@@ -40,15 +40,20 @@ export default function AddCar() {
     luggageCapacity: '',
     hasAc: true,
     automatic: true,
+    transmissionGears: '',
     fuelType: 'Petrol',
     color: '',
     description: '',
     coverImageUrl: '',
-    includes: '',
-    excludes: '',
     supplierId: '',
     status: 'ACTIVE' as CarStatus,
   });
+
+  // Includes/Excludes are now structured row lists (one input per row + Add
+  // Item button) so the form matches the Figma reference. Stored as String[]
+  // server-side just like before — only the UX changed.
+  const [includes, setIncludes] = useState<string[]>(['']);
+  const [excludes, setExcludes] = useState<string[]>(['']);
 
   const [rentalRows, setRentalRows] = useState<RentalRow[]>(DEFAULT_RENTAL_ROWS.map(r => ({ ...r })));
   const [transferBands, setTransferBands] = useState<TransferBand[]>(DEFAULT_TRANSFER_BANDS.map(r => ({ ...r })));
@@ -161,10 +166,11 @@ export default function AddCar() {
         color: form.color || undefined,
         description: form.description || undefined,
         coverImageUrl: form.coverImageUrl || undefined,
-        includes: form.includes ? form.includes.split('\n').map(s => s.trim()).filter(Boolean) : [],
-        excludes: form.excludes ? form.excludes.split('\n').map(s => s.trim()).filter(Boolean) : [],
+        includes: includes.map(s => s.trim()).filter(Boolean),
+        excludes: excludes.map(s => s.trim()).filter(Boolean),
         supplierId: form.supplierId || undefined,
         status: form.status,
+        transmissionGears: form.transmissionGears ? Number(form.transmissionGears) : undefined,
         rates,
         // Structured add-on services — V14 migration backfilled legacy XSVC: rows.
         extraServices: extraServices
@@ -235,27 +241,22 @@ export default function AddCar() {
               onChange={url => setForm(f => ({ ...f, coverImageUrl: url }))}
             />
 
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Includes (one per line)</label>
-                <textarea
-                  rows={3}
-                  placeholder="GPS&#10;Insurance&#10;24/7 support"
-                  value={form.includes}
-                  onChange={e => setForm(f => ({ ...f, includes: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary resize-none"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Excludes (one per line)</label>
-                <textarea
-                  rows={3}
-                  placeholder="Fuel&#10;Driver"
-                  value={form.excludes}
-                  onChange={e => setForm(f => ({ ...f, excludes: e.target.value }))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand-primary resize-none"
-                />
-              </div>
+            {/* Inclusions / Exclusions — structured row lists with Add Item
+                button (matches the Figma reference). Stored server-side as
+                String[] just like the previous textarea encoding. */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 space-y-5">
+              <RowList
+                label="Inclusions"
+                rows={includes}
+                placeholder="e.g. GPS, Insurance, 24/7 support"
+                onChange={setIncludes}
+              />
+              <RowList
+                label="Exclusion"
+                rows={excludes}
+                placeholder="e.g. Fuel, Driver"
+                onChange={setExcludes}
+              />
             </div>
           </div>
 
@@ -328,6 +329,14 @@ export default function AddCar() {
                   </select>
                   <ChevronDown className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Transmission (Gears)</label>
+                <input type="number" min={1} max={12}
+                  value={form.transmissionGears}
+                  onChange={e => setForm(f => ({ ...f, transmissionGears: e.target.value }))}
+                  placeholder="e.g. 6"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-brand-primary outline-none text-sm font-medium" />
               </div>
               {suppliers.length > 0 && (
                 <div className="space-y-2 md:col-span-2">
@@ -493,6 +502,48 @@ export default function AddCar() {
           </div>
         </div>
       </form>
+    </div>
+  );
+}
+
+/**
+ * Multi-row text-input list with "Add Item" button. Used for both Inclusions
+ * and Exclusions on the Add/Edit Car form so admins can structure values
+ * row-by-row instead of typing into a free-form textarea.
+ */
+function RowList({
+  label, rows, placeholder, onChange,
+}: { label: string; rows: string[]; placeholder?: string; onChange: (next: string[]) => void }) {
+  const update = (idx: number, val: string) => onChange(rows.map((r, i) => i === idx ? val : r));
+  const remove = (idx: number) => onChange(rows.length <= 1 ? [''] : rows.filter((_, i) => i !== idx));
+  const add    = () => onChange([...rows, '']);
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</label>
+        <button type="button" onClick={add}
+          className="flex items-center gap-1 text-brand-primary text-xs font-bold hover:underline">
+          <Plus className="w-3.5 h-3.5" /> Add Item
+        </button>
+      </div>
+      <div className="space-y-2">
+        {rows.map((row, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={row}
+              placeholder={placeholder}
+              onChange={e => update(i, e.target.value)}
+              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-primary outline-none"
+            />
+            <button type="button" onClick={() => remove(i)}
+              className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              aria-label={`Remove ${label} item`}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

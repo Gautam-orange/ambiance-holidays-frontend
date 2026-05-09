@@ -63,10 +63,31 @@ export const updateAgent = (id: string, data: {
 export const getAgentStats = () =>
   apiClient.get('/admin/agents/stats').then(r => r.data.data as AgentStats);
 
+export interface ModuleStats {
+  currentBookings: number;
+  upcomingBookings: number;
+  revenueTotal: number;
+  revenueThisMonth: number;
+}
+
 export const getDashboardStats = () =>
   apiClient.get('/admin/dashboard').then(r => r.data.data as {
     bookings: { total: number; pending: number; confirmed: number; cancelled: number };
     revenue: { total: number; thisMonth: number };
     agents: { total: number; pending: number; active: number };
-    assets: { activeCars: number; activeTours: number; activeDayTrips: number };
+    /** Per-module booking counts + revenue. Field is optional so older backends still parse. */
+    modules?: {
+      carRental: ModuleStats;
+      carTransfer: ModuleStats;
+      activities: ModuleStats;
+      dayTour: ModuleStats;
+    };
+    assets: {
+      activeCars: number;
+      inactiveCars?: number;
+      activeTours: number;
+      inactiveTours?: number;
+      activeDayTrips: number;
+      inactiveDayTrips?: number;
+    };
   });

@@ -46,6 +46,8 @@ export interface BookingItem {
 export interface Booking {
   id: string;
   reference: string;
+  /** Issued invoice number (e.g. INV-2026-0042). Null when not yet issued. */
+  invoiceNumber?: string | null;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
   customerName: string;
   customerEmail: string;
@@ -56,6 +58,8 @@ export interface Booking {
   agentName: string | null;
   agentId: string | null;
   createdByName: string | null;
+  /** "AGENT" if booked by a B2B partner, "CUSTOMER" if direct, null otherwise. */
+  bookedByType?: 'AGENT' | 'CUSTOMER' | null;
   isEnquiry: boolean;
   cancelledByType: string | null;
   serviceDate: string;
