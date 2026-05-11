@@ -5,7 +5,7 @@ import {
   Headphones, Navigation, ArrowLeft, Minus, Plus,
   ShoppingCart, Check, Settings2, TrendingUp, ChevronLeft, Clock, LogIn, Star, Briefcase
 } from 'lucide-react';
-import carsApi, { Car, getDailyRate } from '../api/cars';
+import carsApi, { Car, getDailyRate, getWeeklyRate, getMonthlyRate, computeBestRentalPrice } from '../api/cars';
 import { addToCart, formatMoney } from '../api/bookings';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
@@ -51,7 +51,8 @@ export default function CarRentalDetails() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const isAgent = user?.role === 'B2B_AGENT';
+  // AM_017: markup is for any logged-in agent role, not just pure B2B_AGENT.
+  const isAgent = !!user && ['B2B_AGENT', 'SUPER_ADMIN', 'ADMIN_OPS'].includes(user.role);
   const [car, setCar] = useState<Car | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -137,12 +138,15 @@ export default function CarRentalDetails() {
     });
   };
 
-  // Price calculations — daily rate × rental days. (Weekly/Monthly rates that
-  // admins can configure aren't surfaced here because the booking flow charges
-  // per day; the selector was removed for that reason.)
+  // Price calculations — auto-pick the cheapest mix of DAILY/WEEKLY/MONTHLY
+  // rates the admin configured. AM_009: users now see all available tiers and
+  // get the most cost-effective combo applied automatically.
   const dailyRate = car ? getDailyRate(car) : undefined;
+  const weeklyRate = car ? getWeeklyRate(car) : undefined;
+  const monthlyRate = car ? getMonthlyRate(car) : undefined;
   const perDay = dailyRate?.amountCents ?? 0;
-  const baseSubtotal = perDay * rentalDays;
+  const bestPrice = car ? computeBestRentalPrice(car, rentalDays) : null;
+  const baseSubtotal = bestPrice?.totalCents ?? perDay * rentalDays;
   const extrasTotalCents = extraServices
     .filter(s => selectedExtras.has(s.name))
     .reduce((acc, s) => acc + s.priceCents, 0);
@@ -573,14 +577,42 @@ export default function CarRentalDetails() {
                 </div>
               )}
 
+              {/* Available rate tiers (AM_009) */}
+              {dailyRate && (weeklyRate || monthlyRate) && (
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2">Available Rates</p>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="rounded-xl border border-slate-200 px-2 py-2 text-center">
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Daily</div>
+                      <div className="font-display font-bold text-slate-800 mt-0.5">${(dailyRate.amountCents / 100).toLocaleString('en-US')}</div>
+                    </div>
+                    <div className={cn('rounded-xl border px-2 py-2 text-center', weeklyRate ? 'border-slate-200' : 'border-slate-100 opacity-40')}>
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Weekly</div>
+                      <div className="font-display font-bold text-slate-800 mt-0.5">
+                        {weeklyRate ? `$${(weeklyRate.amountCents / 100).toLocaleString('en-US')}` : '—'}
+                      </div>
+                    </div>
+                    <div className={cn('rounded-xl border px-2 py-2 text-center', monthlyRate ? 'border-slate-200' : 'border-slate-100 opacity-40')}>
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Monthly</div>
+                      <div className="font-display font-bold text-slate-800 mt-0.5">
+                        {monthlyRate ? `$${(monthlyRate.amountCents / 100).toLocaleString('en-US')}` : '—'}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2">We auto-apply the best mix for your rental length.</p>
+                </div>
+              )}
+
               {/* Price Breakdown */}
               {dailyRate && (
                 <div className="border-t border-slate-100 pt-4 space-y-2 text-sm">
-                  {/* Base rental */}
-                  <div className="flex justify-between text-slate-500">
-                    <span>${(perDay / 100).toLocaleString('en-US')} × {rentalDays} day{rentalDays > 1 ? 's' : ''}</span>
-                    <span>{formatMoney(baseSubtotal)}</span>
-                  </div>
+                  {/* Base rental — smart breakdown from chosen rate mix */}
+                  {(bestPrice?.breakdown ?? []).map((b, i) => (
+                    <div key={`${b.period}-${i}`} className="flex justify-between text-slate-500">
+                      <span>${(b.rateCents / 100).toLocaleString('en-US')} × {b.label}</span>
+                      <span>{formatMoney(b.rateCents * b.qty)}</span>
+                    </div>
+                  ))}
                   {/* Selected extras */}
                   {extraServices
                     .filter(s => selectedExtras.has(s.name))

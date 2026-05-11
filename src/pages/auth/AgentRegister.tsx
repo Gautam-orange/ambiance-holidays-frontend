@@ -298,12 +298,13 @@ export default function AgentRegister() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">City</label>
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">City *</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     placeholder="Port Louis"
+                    required
                     value={form.city ?? ''}
                     onChange={set('city')}
                     className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium"
@@ -312,10 +313,10 @@ export default function AgentRegister() {
               </div>
 
               <div className="md:col-span-2 space-y-2">
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Complete Address</label>
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Complete Address *</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input type="text" placeholder="Street, Building, Floor" onChange={set('address')}
+                  <input type="text" placeholder="Street, Building, Floor" required value={form.address ?? ''} onChange={set('address')}
                     className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium" />
                 </div>
               </div>

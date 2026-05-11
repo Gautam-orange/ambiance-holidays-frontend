@@ -3,6 +3,7 @@ import { Search, Plus, ChevronLeft, ChevronRight, Pencil, Trash2, Download } fro
 import { Link } from 'react-router-dom';
 import carsApi, { Car, CarCategory, CarUsageType, formatPrice, getDailyRate } from '../../api/cars';
 import { cn } from '../../lib/utils';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
 
 const USAGE_TYPES: { label: string; value: CarUsageType | '' }[] = [
   { label: 'All Types', value: '' },
@@ -21,6 +22,8 @@ export default function CarManagement() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  // AM_028: debounce the search input so we don't hit /admin/cars on every keystroke.
+  const debouncedSearch = useDebouncedValue(search, 350);
   const [usageType, setUsageType] = useState<CarUsageType | ''>('');
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -33,7 +36,7 @@ export default function CarManagement() {
       const res = await carsApi.list({
         page,
         size: PAGE_SIZE,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         usageType: usageType || undefined,
       });
       setCars(res.data.data.items);
@@ -43,11 +46,11 @@ export default function CarManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, usageType]);
+  }, [page, debouncedSearch, usageType]);
 
   useEffect(() => { fetchCars(); }, [fetchCars]);
 
-  useEffect(() => { setPage(0); }, [search, usageType]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, usageType]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this car? This cannot be undone.')) return;

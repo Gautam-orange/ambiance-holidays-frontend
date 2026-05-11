@@ -68,6 +68,10 @@ export default function DayTripDetails() {
     setAddError('');
     setAdding(true);
     try {
+      // AM_016: also carry the pickup zone's time window so the admin
+      // BookingDetails screen can render a proper pickup time, not just date.
+      const firstZone = (trip.pickupZones ?? [])[0];
+      const pickupTime = firstZone?.pickupTimeFrom || undefined;
       await addToCartApi({
         itemType: 'DAY_TRIP',
         refId: trip.id,
@@ -76,6 +80,8 @@ export default function DayTripDetails() {
           paxAdults: adults,
           paxChildren: children,
           date,
+          pickupTime,
+          pickupLocation: firstZone?.zoneName || undefined,
           markupPct: markup > 0 ? markup : undefined,
           unitPriceCents: total,
         },

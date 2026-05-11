@@ -121,17 +121,32 @@ function ItemCard({ item }: { item: BookingItem }) {
             Drop-off: {item.dropoffLocation}
           </span>
         )}
+        {/* AM_016: separate date + time labels so admin always sees both —
+            falls back to the booking-level serviceDate when item.startAt is
+            missing (older bookings or flows that didn't persist a time). */}
+        {(item.startAt || item.serviceDate) && (
+          <span className="flex items-center gap-1.5">
+            <Calendar className="w-3 h-3 text-brand-primary" />
+            Pickup date: {item.startAt ? new Date(item.startAt).toLocaleDateString() : item.serviceDate}
+          </span>
+        )}
         {item.startAt && (
           <span className="flex items-center gap-1.5">
             <Clock className="w-3 h-3 text-brand-primary" />
-            Pickup time: {new Date(item.startAt).toLocaleString()}
+            Pickup time: {new Date(item.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
         {item.endAt && (
-          <span className="flex items-center gap-1.5">
-            <Clock className="w-3 h-3 text-brand-primary" />
-            Drop-off time: {new Date(item.endAt).toLocaleString()}
-          </span>
+          <>
+            <span className="flex items-center gap-1.5">
+              <Calendar className="w-3 h-3 text-brand-primary" />
+              Drop-off date: {new Date(item.endAt).toLocaleDateString()}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="w-3 h-3 text-brand-primary" />
+              Drop-off time: {new Date(item.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </>
         )}
         {item.tripType && (
           <span className="flex items-center gap-1.5">

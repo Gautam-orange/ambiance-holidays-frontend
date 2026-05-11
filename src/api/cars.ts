@@ -173,3 +173,74 @@ export function formatPrice(cents: number): string {
 export function getDailyRate(car: Car): CarRate | undefined {
   return car.rates.find(r => r.period === 'DAILY');
 }
+
+export function getWeeklyRate(car: Car): CarRate | undefined {
+  return car.rates.find(r => r.period === 'WEEKLY');
+}
+
+export function getMonthlyRate(car: Car): CarRate | undefined {
+  return car.rates.find(r => r.period === 'MONTHLY');
+}
+
+export interface RateBreakdownItem {
+  period: RatePeriod;
+  qty: number;
+  rateCents: number;
+  label: string;
+}
+
+export interface BestRentalPrice {
+  totalCents: number;
+  breakdown: RateBreakdownItem[];
+}
+
+/**
+ * Compute the cheapest combination of DAILY/WEEKLY/MONTHLY rates that covers
+ * the given number of rental days. Falls back to daily-only if other tiers
+ * aren't configured. Returns null when there's no daily rate at all.
+ */
+export function computeBestRentalPrice(car: Car, days: number): BestRentalPrice | null {
+  if (days < 1) return null;
+  const daily = getDailyRate(car);
+  const weekly = getWeeklyRate(car);
+  const monthly = getMonthlyRate(car);
+  if (!daily) return null;
+
+  let best: BestRentalPrice = {
+    totalCents: daily.amountCents * days,
+    breakdown: [{ period: 'DAILY', qty: days, rateCents: daily.amountCents, label: `${days} day${days > 1 ? 's' : ''}` }],
+  };
+
+  const tryCombo = (months: number, weeks: number, leftover: number) => {
+    let total = 0;
+    const breakdown: RateBreakdownItem[] = [];
+    if (months > 0 && monthly) {
+      total += monthly.amountCents * months;
+      breakdown.push({ period: 'MONTHLY', qty: months, rateCents: monthly.amountCents, label: `${months} month${months > 1 ? 's' : ''}` });
+    }
+    if (weeks > 0 && weekly) {
+      total += weekly.amountCents * weeks;
+      breakdown.push({ period: 'WEEKLY', qty: weeks, rateCents: weekly.amountCents, label: `${weeks} week${weeks > 1 ? 's' : ''}` });
+    }
+    if (leftover > 0) {
+      total += daily.amountCents * leftover;
+      breakdown.push({ period: 'DAILY', qty: leftover, rateCents: daily.amountCents, label: `${leftover} day${leftover > 1 ? 's' : ''}` });
+    }
+    if (total < best.totalCents) best = { totalCents: total, breakdown };
+  };
+
+  if (monthly && days >= 30) {
+    const months = Math.floor(days / 30);
+    const rem = days % 30;
+    if (weekly && rem >= 7) {
+      const weeks = Math.floor(rem / 7);
+      tryCombo(months, weeks, rem % 7);
+    }
+    tryCombo(months, 0, rem);
+  }
+  if (weekly && days >= 7) {
+    const weeks = Math.floor(days / 7);
+    tryCombo(0, weeks, days % 7);
+  }
+  return best;
+}

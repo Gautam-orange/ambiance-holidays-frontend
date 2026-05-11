@@ -308,12 +308,12 @@ export default function AddDayTrip() {
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Pickup From</label>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Pickup Location</label>
                     <input type="text" placeholder="e.g. Hotel lobby, JBR Marina" value={zone.pickupFrom} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], pickupFrom: e.target.value }; setPickupZones(z); }}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">Pickup To</label>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">Drop-off Location</label>
                     <input type="text" placeholder="e.g. Tour starting point" value={zone.pickupTo} onChange={e => { const z = [...pickupZones]; z[i] = { ...z[i], pickupTo: e.target.value }; setPickupZones(z); }}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
                   </div>

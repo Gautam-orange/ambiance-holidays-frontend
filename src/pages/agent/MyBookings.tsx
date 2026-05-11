@@ -137,14 +137,22 @@ function BookingRow({
             >
               <FileText className="w-4 h-4" />
             </button>
-            {booking.status === 'PENDING' && (
-              <button
-                onClick={() => onCancel(booking.id)}
-                className="text-xs text-red-400 hover:text-red-600 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                Cancel
-              </button>
-            )}
+            {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (() => {
+              // AM_015/AM_030: allow cancelling CONFIRMED bookings too, as long
+              // as the service date is still in the future. Backend rejects
+              // PAST_SERVICE_DATE; we mirror that gating here for clarity.
+              const sd = booking.serviceDate ? new Date(booking.serviceDate) : null;
+              const isPast = sd && sd.getTime() < new Date(new Date().toDateString()).getTime();
+              if (isPast) return null;
+              return (
+                <button
+                  onClick={() => onCancel(booking.id)}
+                  className="text-xs text-red-400 hover:text-red-600 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              );
+            })()}
           </div>
         </td>
       </tr>
@@ -384,12 +392,21 @@ export default function MyBookings() {
   }, [loadBookings]);
 
   const handleCancel = async (id: string) => {
+    if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) return;
     const reason = prompt('Reason for cancellation (optional):') ?? '';
     try {
       const updated = await cancelBooking(id, reason);
       setBookings(prev => prev.map(b => b.id === id ? updated : b));
+      alert('Booking cancelled successfully.');
     } catch (e: any) {
-      alert(e?.response?.data?.message ?? e?.response?.data?.error?.message ?? 'Could not cancel booking');
+      // AM_030: surface a friendly message for the common backend errors.
+      const code = e?.response?.data?.error?.code ?? e?.response?.data?.code;
+      const msg = e?.response?.data?.error?.message ?? e?.response?.data?.message;
+      let friendly = msg || 'Could not cancel booking';
+      if (code === 'PAST_SERVICE_DATE') friendly = 'This booking can no longer be cancelled — the service date has passed.';
+      else if (code === 'ALREADY_CANCELLED') friendly = 'This booking is already cancelled.';
+      else if (code === 'INVALID_TRANSITION') friendly = 'This booking cannot be cancelled in its current state.';
+      alert(friendly);
     }
   };
 

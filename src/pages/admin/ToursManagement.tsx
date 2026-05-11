@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, Plus, Edit, Trash2, RefreshCw, Download, Eye } from 'lucide-react';
 import { adminListTours, adminDeleteTour, Tour } from '../../api/tours';
 import { cn } from '../../lib/utils';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
 
 const CATEGORY_LABELS: Record<string, string> = { LAND: 'Land', SEA: 'Sea', AIR: 'Air' };
 const DURATION_LABELS: Record<string, string> = { HALF_DAY: 'Half Day', FULL_DAY: 'Full Day' };
@@ -14,6 +15,8 @@ export default function ToursManagement() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // AM_028: debounce so we don't refetch on every keystroke.
+  const debouncedSearch = useDebouncedValue(search, 350);
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState('');
   const [total, setTotal] = useState(0);
@@ -21,13 +24,13 @@ export default function ToursManagement() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminListTours({ search: search || undefined, category: category || undefined, status: status || undefined, size: 50 });
+      const res = await adminListTours({ search: debouncedSearch || undefined, category: category || undefined, status: status || undefined, size: 50 });
       setTours(res.data ?? []);
       setTotal(res.meta?.total ?? 0);
     } finally {
       setLoading(false);
     }
-  }, [search, category, status]);
+  }, [debouncedSearch, category, status]);
 
   useEffect(() => { load(); }, [load]);
 

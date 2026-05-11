@@ -316,11 +316,32 @@ export default function TourDetails() {
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-primary" />
             </div>
 
-            {/* Pricing summary */}
+            {/* Pricing summary — AM_036: itemise adult / child / infant so user
+                sees the same math the cart applies. */}
             <div className="border-t border-slate-100 pt-4 space-y-2 text-sm">
-              <div className="flex justify-between text-slate-500">
-                <span>Base fare</span><span>{fmt(subtotal - zoneExtra)}</span>
-              </div>
+              {paxAdults > 0 && (
+                <div className="flex justify-between text-slate-500">
+                  <span>{paxAdults} × Adult {fmt(tour.adultPriceCents)}</span>
+                  <span>{fmt(adultTotal)}</span>
+                </div>
+              )}
+              {paxChildren > 0 && (
+                <div className="flex justify-between text-slate-500">
+                  <span>{paxChildren} × Child {fmt(tour.childPriceCents)}</span>
+                  <span>{fmt(childTotal)}</span>
+                </div>
+              )}
+              {paxInfants > 0 && (tour.infantPriceCents ?? 0) > 0 && (
+                <div className="flex justify-between text-slate-500">
+                  <span>{paxInfants} × Infant {fmt(tour.infantPriceCents ?? 0)}</span>
+                  <span>{fmt(infantTotal)}</span>
+                </div>
+              )}
+              {paxInfants > 0 && (tour.infantPriceCents ?? 0) === 0 && (
+                <div className="flex justify-between text-slate-400">
+                  <span>{paxInfants} × Infant</span><span>Free</span>
+                </div>
+              )}
               {zoneExtra > 0 && (
                 <div className="flex justify-between text-slate-500">
                   <span>Pickup ({zone?.zoneName})</span><span>+{fmt(zoneExtra)}</span>
