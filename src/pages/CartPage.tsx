@@ -13,8 +13,13 @@ import {
 const HIDDEN_OPTION_KEYS = new Set([
   'unitPriceCents', 'dailyRateCents', 'priceCents',
   'carId', 'tierId', 'refId',
-  'tierLabel', 'markupPct', 'commissionPct',
+  'tierLabel', 'markupPct', 'commissionPct', 'markupPercent',
   'selectedExtras', // rendered separately as a list
+  // Internal IDs the frontend sends with the cart payload — the human-readable
+  // counterpart is already covered by pickupLocation / etc. Hiding these so
+  // the raw "pz_…" UUID doesn't appear as a row in the cart line summary.
+  'pickupZoneId', 'pickupZone', 'pickupZoneCode',
+  'distanceKm', // shown separately above when number
 ]);
 
 // Pretty labels for known itemTypes

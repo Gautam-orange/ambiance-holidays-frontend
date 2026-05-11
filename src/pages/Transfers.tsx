@@ -482,19 +482,32 @@ export default function Transfers() {
                   )}
                   {!quoting && !quoteError && quote && quote.found && (
                     <motion.div key="price" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      className="space-y-1">
+                      className="space-y-2">
                       <div className="flex items-baseline gap-3 flex-wrap">
                         <span className="text-3xl font-display font-bold text-brand-primary">
-                          {selectedCarPrice != null ? fmt(selectedCarPrice) : cheapestPrice != null ? `from ${fmt(cheapestPrice)}` : '—'}
+                          {selectedCarPrice != null ? fmt(selectedCarPrice + Math.round(selectedCarPrice * 0.15)) : cheapestPrice != null ? `from ${fmt(cheapestPrice + Math.round(cheapestPrice * 0.15))}` : '—'}
                         </span>
                         <span className="text-slate-400 text-sm">
                           · {quote.distanceKm} km{selectedCar && ` · ${selectedCar.name}`}
                         </span>
                       </div>
+                      {/* Price Breakdown — subtotal + VAT 15% so the agent sees
+                          where the total comes from before adding to cart. */}
+                      {selectedCarPrice != null && (() => {
+                        const sub = selectedCarPrice;
+                        const vat = Math.round(sub * 0.15);
+                        return (
+                          <div className="text-xs text-slate-500 space-y-0.5 pt-1 border-t border-slate-100">
+                            <div className="flex justify-between"><span>Subtotal</span><span>{fmt(sub)}</span></div>
+                            <div className="flex justify-between"><span>VAT (15%)</span><span>{fmt(vat)}</span></div>
+                            <div className="flex justify-between font-bold text-slate-800"><span>Total</span><span>{fmt(sub + vat)}</span></div>
+                          </div>
+                        );
+                      })()}
                       {isAgent && markupPct > 0 && (
                         <div className="flex gap-4 text-sm">
-                          <span className="text-slate-500">Ambiance charges you: <strong>{fmt(basePrice)}</strong></span>
-                          <span className="text-amber-600 font-bold">You charge customer: {fmt(customerPrice)}</span>
+                          <span className="text-slate-500">Ambiance charges you: <strong>{fmt(basePrice + Math.round(basePrice * 0.15))}</strong></span>
+                          <span className="text-amber-600 font-bold">You charge customer: {fmt(customerPrice + Math.round(customerPrice * 0.15))}</span>
                         </div>
                       )}
                       {selectedCar && (

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 import carsApi, { Car, CarCategory, CarRateRequest, RatePeriod } from '../../api/cars';
-import CoverImageInput from '../../components/CoverImageInput';
+import MultiImageUpload from '../../components/MultiImageUpload';
 
 const CATEGORIES: CarCategory[] = ['ECONOMY', 'STANDARD', 'PREMIUM', 'LUXURY', 'SUV', 'MINIVAN'];
 
@@ -318,10 +318,14 @@ export default function CarDetail() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Cover Image</label>
-            <CoverImageInput
-              value={car.coverImageUrl ?? ''}
-              onChange={url => setCar(c => c && ({ ...c, coverImageUrl: url }))}
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Car Images</label>
+            {/* AM_008: multi-image uploader for edit screen too. */}
+            <MultiImageUpload
+              cover={car.coverImageUrl ?? ''}
+              gallery={car.galleryUrls ?? []}
+              onChange={(coverUrl, gallery) => setCar(c => c && ({ ...c, coverImageUrl: coverUrl, galleryUrls: gallery }))}
+              maxImages={5}
+              maxBytes={5 * 1024 * 1024}
             />
           </div>
 

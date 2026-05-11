@@ -49,23 +49,36 @@ export default function CheckoutPage() {
   const lastBookingKey = user?.id ? `lastCheckoutForm:${user.id}` : null;
 
   // Pre-populate from logged-in user + last successful booking (per user).
+  // AM_011: also pull from the agent profile (address / phone / country) on
+  // the very first checkout, before a cache exists. Saves the agent from
+  // re-typing everything they already gave us at signup.
   useEffect(() => {
     if (!user) return;
     let cached: Partial<typeof form> | null = null;
     if (lastBookingKey) {
       try { const raw = localStorage.getItem(lastBookingKey); if (raw) cached = JSON.parse(raw); } catch { /* ignore */ }
     }
+    // Split a stored agent phone like "+230 57123456" into country code + digits
+    // so the dropdown matches and the input shows only the local number.
+    const parsePhone = (p?: string): { code?: string; digits?: string } => {
+      if (!p) return {};
+      const m = p.trim().match(/^(\+\d{1,4})\s*(.*)$/);
+      if (m) return { code: m[1], digits: m[2].trim() };
+      return { digits: p.trim() };
+    };
+    const agent = user.agent;
+    const fromAgent = parsePhone(agent?.phone);
     setForm(f => ({
       ...f,
       customerFirstName: f.customerFirstName || cached?.customerFirstName || user.firstName || '',
       customerLastName:  f.customerLastName  || cached?.customerLastName  || user.lastName  || '',
       customerEmail:     f.customerEmail     || cached?.customerEmail     || user.email     || '',
-      phoneCountryCode:  cached?.phoneCountryCode  ?? f.phoneCountryCode,
-      phoneNumber:       f.phoneNumber       || cached?.phoneNumber       || '',
-      whatsappCountryCode: cached?.whatsappCountryCode ?? f.whatsappCountryCode,
-      whatsappNumber:    f.whatsappNumber    || cached?.whatsappNumber    || '',
-      nationality:       cached?.nationality ?? f.nationality,
-      address:           f.address           || cached?.address           || '',
+      phoneCountryCode:  cached?.phoneCountryCode  ?? fromAgent.code ?? f.phoneCountryCode,
+      phoneNumber:       f.phoneNumber       || cached?.phoneNumber       || fromAgent.digits || '',
+      whatsappCountryCode: cached?.whatsappCountryCode ?? fromAgent.code ?? f.whatsappCountryCode,
+      whatsappNumber:    f.whatsappNumber    || cached?.whatsappNumber    || fromAgent.digits || '',
+      nationality:       cached?.nationality ?? agent?.country ?? f.nationality,
+      address:           f.address           || cached?.address           || agent?.address || '',
     }));
   }, [user, lastBookingKey]);
 

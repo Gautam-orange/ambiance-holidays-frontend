@@ -87,7 +87,12 @@ export default function AgentProfile() {
             </div>
             <div>
               <dt className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Agent ID</dt>
-              <dd className="font-mono text-sm text-slate-600 break-all">{agent.id}</dd>
+              <dd className="font-mono text-sm text-slate-700 font-semibold">
+                {/* AM_007: short human-friendly code derived from UUID.
+                    Customers + admin see same format everywhere. */}
+                AMB-{agent.id.replace(/-/g, '').slice(0, 8).toUpperCase()}
+              </dd>
+              <dd className="font-mono text-[10px] text-slate-400 break-all mt-1">{agent.id}</dd>
             </div>
             {businessTypeLabel && (
               <div>

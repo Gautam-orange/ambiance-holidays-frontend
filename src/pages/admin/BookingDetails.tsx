@@ -89,6 +89,41 @@ function ItemCard({ item }: { item: BookingItem }) {
 
       {/* Structured booking details — read from direct response fields */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-xs text-slate-500">
+        {/* CAR_TRANSFER + CAR_RENTAL enrichment so admin sees the vehicle context */}
+        {item.routeTitle && (
+          <span className="flex items-center gap-1.5 col-span-full">
+            <Tag className="w-3 h-3 text-brand-primary" />
+            <span className="font-semibold text-slate-700">Route:</span> {item.routeTitle}
+          </span>
+        )}
+        {item.carName && (
+          <span className="flex items-center gap-1.5">
+            <Tag className="w-3 h-3 text-brand-primary" />
+            Vehicle: <span className="font-semibold text-slate-700">{item.carName}</span>
+          </span>
+        )}
+        {item.carRegistrationNo && (
+          <span className="flex items-center gap-1.5">
+            <Tag className="w-3 h-3 text-slate-400" />
+            Reg #: <span className="font-mono">{item.carRegistrationNo}</span>
+          </span>
+        )}
+        {item.carCategory && (
+          <span className="flex items-center gap-1.5">
+            <Tag className="w-3 h-3 text-slate-400" />
+            Category: {item.carCategory}
+          </span>
+        )}
+        <span className="flex items-center gap-1.5">
+          <Tag className="w-3 h-3 text-slate-400" />
+          Quantity: {item.quantity ?? 1}
+        </span>
+        {item.distanceKm != null && (
+          <span className="flex items-center gap-1.5">
+            <Tag className="w-3 h-3 text-slate-400" />
+            Distance: {item.distanceKm} km
+          </span>
+        )}
         {(item.paxAdults ?? 0) > 0 && (
           <span className="flex items-center gap-1.5">
             <Users className="w-3 h-3 text-brand-primary" />
@@ -543,8 +578,13 @@ export default function BookingDetails() {
                       booking.payment.status === 'SUCCEEDED' ? 'bg-green-50 text-green-700' :
                       booking.payment.status === 'FAILED' ? 'bg-red-50 text-red-700' :
                       booking.payment.status === 'REFUNDED' ? 'bg-amber-50 text-amber-700' :
+                      booking.payment.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
                       'bg-slate-100 text-slate-600')}>
-                      {booking.payment.status}
+                      {/* Friendly labels per QA ask: Success / Failed / Pending */}
+                      {booking.payment.status === 'SUCCEEDED' ? 'Success' :
+                        booking.payment.status === 'FAILED' ? 'Failed' :
+                        booking.payment.status === 'PENDING' ? 'Pending' :
+                        booking.payment.status}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">

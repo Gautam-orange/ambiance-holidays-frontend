@@ -12,9 +12,17 @@ const USAGE_TYPES: { label: string; value: CarUsageType | '' }[] = [
   { label: 'Both', value: 'BOTH' },
 ];
 
+/**
+ * Resolve the headline Transfer/KM rate. Cars can carry multiple PER_KM bands
+ * (0–20, 21–150, …) — pick the band with the smallest kmFrom so the list shows
+ * the rate that applies to the most common short trips. Falls back to any
+ * PER_KM band if no zero-based band exists.
+ */
 function getTransferRate(car: Car): string {
-  const r = car.rates.find(r => r.period === 'PER_KM' && r.kmFrom === 0);
-  return r ? formatPrice(r.amountCents) + '/km' : '—';
+  const bands = (car.rates ?? []).filter(r => r.period === 'PER_KM' && r.amountCents > 0);
+  if (bands.length === 0) return '—';
+  const bottom = bands.reduce((acc, r) => ((r.kmFrom ?? 0) < (acc.kmFrom ?? 0) ? r : acc), bands[0]);
+  return formatPrice(bottom.amountCents) + '/km';
 }
 
 export default function CarManagement() {
@@ -182,7 +190,10 @@ export default function CarManagement() {
                         {showPerDay && dailyRate ? formatPrice(dailyRate.amountCents) : '—'}
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-600 whitespace-nowrap">
-                        {showTransfer ? getTransferRate(car) : '—'}
+                        {/* Show transfer/km whenever bands exist — usageType=RENTAL
+                            cars usually have none, but render the rate when
+                            configured rather than hide it (AM_new). */}
+                        {getTransferRate(car)}
                       </td>
                       <td className="px-5 py-4">
                         <button

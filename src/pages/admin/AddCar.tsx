@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import carsApi, { CarCategory, CarUsageType, CarStatus, CarRateRequest, RatePeriod, SupplierOption } from '../../api/cars';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import CoverImageInput from '../../components/CoverImageInput';
+import MultiImageUpload from '../../components/MultiImageUpload';
 
 const CATEGORIES: CarCategory[] = ['ECONOMY', 'STANDARD', 'PREMIUM', 'LUXURY', 'SUV', 'MINIVAN'];
 const STATUSES: CarStatus[] = ['ACTIVE', 'INACTIVE', 'MAINTENANCE'];
@@ -45,6 +45,7 @@ export default function AddCar() {
     color: '',
     description: '',
     coverImageUrl: '',
+    galleryUrls: [] as string[],
     supplierId: '',
     status: 'ACTIVE' as CarStatus,
   });
@@ -166,6 +167,7 @@ export default function AddCar() {
         color: form.color || undefined,
         description: form.description || undefined,
         coverImageUrl: form.coverImageUrl || undefined,
+        galleryUrls: form.galleryUrls.length > 0 ? form.galleryUrls : undefined,
         includes: includes.map(s => s.trim()).filter(Boolean),
         excludes: excludes.map(s => s.trim()).filter(Boolean),
         supplierId: form.supplierId || undefined,
@@ -236,9 +238,14 @@ export default function AddCar() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Image */}
           <div className="space-y-6">
-            <CoverImageInput
-              value={form.coverImageUrl}
-              onChange={url => setForm(f => ({ ...f, coverImageUrl: url }))}
+            {/* AM_008: dedicated multi-image uploader. Max 5 images, 5 MB
+                each. First image becomes the cover; rest go to gallery. */}
+            <MultiImageUpload
+              cover={form.coverImageUrl}
+              gallery={form.galleryUrls}
+              onChange={(coverUrl, gallery) => setForm(f => ({ ...f, coverImageUrl: coverUrl, galleryUrls: gallery }))}
+              maxImages={5}
+              maxBytes={5 * 1024 * 1024}
             />
 
             {/* Inclusions / Exclusions — structured row lists with Add Item

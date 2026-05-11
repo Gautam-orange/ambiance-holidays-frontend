@@ -102,6 +102,15 @@ export default function AgentDetail() {
         </div>
 
         <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+          {/* AM_007: surface the same Agent ID format the partner sees on their
+              profile so admin can quote it back during support. */}
+          <div>
+            <p className="text-xs text-slate-400 uppercase tracking-wider">Agent ID</p>
+            <p className="font-mono font-semibold text-slate-700">
+              AMB-{agent.id.replace(/-/g, '').slice(0, 8).toUpperCase()}
+            </p>
+            <p className="font-mono text-[10px] text-slate-400 break-all">{agent.id}</p>
+          </div>
           <div><p className="text-xs text-slate-400 uppercase tracking-wider">Contact Person</p><p className="font-medium text-slate-700">{agent.firstName} {agent.lastName}</p></div>
           <div><p className="text-xs text-slate-400 uppercase tracking-wider">Phone</p><p className="font-medium text-slate-700">{agent.phone ?? '—'}</p></div>
           <div><p className="text-xs text-slate-400 uppercase tracking-wider">WhatsApp</p><p className="font-medium text-slate-700">{agent.whatsapp ?? '—'}</p></div>

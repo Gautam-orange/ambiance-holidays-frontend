@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import authApi, { SignupRequest } from '../../api/auth';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { COUNTRIES } from '../../lib/countries';
+import { citiesFor } from '../../lib/cities';
 
 type BusinessType = 'TRAVEL_AGENCY' | 'FREELANCER' | 'CORPORATE';
 
@@ -259,7 +260,13 @@ export default function AgentRegister() {
                   <select
                     required
                     value={form.country ?? ''}
-                    onChange={set('country')}
+                    onChange={e => {
+                      const nextCountry = e.target.value;
+                      // Reset city when country changes — different countries have
+                      // different city lists, so the previous selection is
+                      // almost always invalid for the new country.
+                      setForm(prev => ({ ...prev, country: nextCountry, city: '' }));
+                    }}
                     className="w-full pl-12 pr-9 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium appearance-none cursor-pointer"
                   >
                     <option value="" disabled>Select country</option>
@@ -297,19 +304,44 @@ export default function AgentRegister() {
                 )}
               </div>
 
+              {/* AM_new: City is a dropdown driven by Country when a curated
+                  list exists; falls back to free-text input for countries we
+                  don't have city data for yet so signup is never blocked. */}
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">City *</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Port Louis"
-                    required
-                    value={form.city ?? ''}
-                    onChange={set('city')}
-                    className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium"
-                  />
-                </div>
+                {(() => {
+                  const list = citiesFor(form.country);
+                  if (list.length > 0) {
+                    return (
+                      <div className="relative">
+                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <select
+                          required
+                          value={form.city ?? ''}
+                          onChange={set('city')}
+                          className="w-full pl-12 pr-9 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium appearance-none cursor-pointer"
+                        >
+                          <option value="" disabled>Select city</option>
+                          {list.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Your city"
+                        required
+                        value={form.city ?? ''}
+                        onChange={set('city')}
+                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-primary/20 text-sm font-medium"
+                      />
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="md:col-span-2 space-y-2">

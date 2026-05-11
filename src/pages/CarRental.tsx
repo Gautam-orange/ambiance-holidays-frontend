@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, CheckCircle2, Briefcase } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -63,6 +63,19 @@ export default function CarRental() {
 
   useEffect(() => { fetchCars(); }, [fetchCars]);
   useEffect(() => { setPage(0); }, [categories, paxOptions, luggageOptions]);
+
+  // AM_new: when an agent submits the search widget, smoothly bring the
+  // results grid into view. We only scroll when there *are* search params —
+  // a clean visit to /car-rental should still land at the top.
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+  const searchKey = searchParams.toString();
+  useEffect(() => {
+    if (!searchKey) return;
+    const t = window.setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    return () => window.clearTimeout(t);
+  }, [searchKey]);
 
   const toggleSet = <T,>(set: Set<T>, val: T, setter: (s: Set<T>) => void) => {
     const next = new Set(set);
@@ -158,7 +171,7 @@ export default function CarRental() {
       <div className="h-24" />
 
       {/* Content — filters LEFT, cars RIGHT */}
-      <div className="max-w-7xl mx-auto px-8 py-16 grid grid-cols-1 lg:grid-cols-4 gap-12">
+      <div ref={resultsRef} className="max-w-7xl mx-auto px-8 py-16 grid grid-cols-1 lg:grid-cols-4 gap-12">
         {/* Filters — LEFT */}
         <div>{FilterPanel}</div>
 

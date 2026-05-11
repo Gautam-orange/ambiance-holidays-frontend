@@ -11,10 +11,29 @@ import apiClient from '../../api/client';
 
 // ─── Status config ───────────────────────────────────────────────────────────
 const STATUS_STYLES: Record<string, { icon: React.ElementType; cls: string; label: string }> = {
-  PENDING:   { icon: Clock,        cls: 'text-amber-600 bg-amber-50 border-amber-100',  label: 'Pending' },
-  CONFIRMED: { icon: CheckCircle,  cls: 'text-green-600 bg-green-50 border-green-100',  label: 'Confirmed' },
-  CANCELLED: { icon: XCircle,      cls: 'text-red-500   bg-red-50   border-red-100',    label: 'Cancelled' },
+  PENDING:        { icon: Clock,       cls: 'text-amber-600 bg-amber-50 border-amber-100', label: 'Pending Admin Approval' },
+  CONFIRMED:      { icon: CheckCircle, cls: 'text-green-600 bg-green-50 border-green-100', label: 'Confirmed' },
+  CANCELLED:      { icon: XCircle,     cls: 'text-red-500   bg-red-50   border-red-100',   label: 'Cancelled' },
+  PAYMENT_FAILED: { icon: XCircle,     cls: 'text-red-600   bg-red-50   border-red-100',   label: 'Payment Failed' },
+  PAYMENT_PENDING:{ icon: Clock,       cls: 'text-yellow-600 bg-yellow-50 border-yellow-100', label: 'Awaiting Payment' },
 };
+
+/**
+ * Derive a UI-only status code so agents can distinguish:
+ *   - Pending Admin Approval (booking PENDING + payment SUCCEEDED / no payment row)
+ *   - Awaiting Payment       (booking PENDING + payment PENDING)
+ *   - Payment Failed         (booking PENDING + payment FAILED)
+ *   - Confirmed              (booking CONFIRMED)
+ *   - Cancelled              (booking CANCELLED)
+ */
+function deriveStatusKey(b: Booking): string {
+  if (b.status === 'CANCELLED') return 'CANCELLED';
+  if (b.status === 'CONFIRMED') return 'CONFIRMED';
+  const p = (b as any).payment;
+  if (p?.status === 'FAILED')  return 'PAYMENT_FAILED';
+  if (p?.status === 'PENDING') return 'PAYMENT_PENDING';
+  return 'PENDING';
+}
 
 const ITEM_LABELS: Record<string, string> = {
   CAR_RENTAL: 'Car Rental', CAR_TRANSFER: 'Transfer',
@@ -66,7 +85,7 @@ function BookingRow({
   onDownloadVoucher: (id: string, ref: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
-  const s = STATUS_STYLES[booking.status] ?? STATUS_STYLES.PENDING;
+  const s = STATUS_STYLES[deriveStatusKey(booking)] ?? STATUS_STYLES.PENDING;
   const Icon = s.icon;
 
   // Defensive defaults — never crash on missing/null fields from the API.
@@ -241,6 +260,30 @@ function BookingRow({
 
                     {/* Booking details grid — uses structured API fields directly */}
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-1.5 text-xs">
+                      {(item as any).routeTitle && (
+                        <span className="flex items-center gap-1.5 text-slate-600 col-span-full">
+                          <Tag className="w-3 h-3 text-brand-primary" />
+                          <span className="font-semibold">Route:</span> {(item as any).routeTitle}
+                        </span>
+                      )}
+                      {(item as any).carName && (
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <Tag className="w-3 h-3 text-brand-primary" />
+                          Vehicle: <span className="font-semibold text-slate-700">{(item as any).carName}</span>
+                        </span>
+                      )}
+                      {(item as any).carCategory && (
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <Tag className="w-3 h-3 text-slate-400" />
+                          {(item as any).carCategory}
+                        </span>
+                      )}
+                      {(item as any).carRegistrationNo && (
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <Tag className="w-3 h-3 text-slate-400" />
+                          <span className="font-mono">{(item as any).carRegistrationNo}</span>
+                        </span>
+                      )}
                       {item.rentalDays > 0 && (
                         <span className="flex items-center gap-1.5 text-slate-500">
                           <Calendar className="w-3 h-3 text-brand-primary" />
@@ -267,16 +310,42 @@ function BookingRow({
                           Drop-off: {item.dropoffLocation}
                         </span>
                       )}
-                      {item.serviceDate && (
+                      {/* AM_new: pickup date + time + drop date + time + stops
+                          so agent sees the full schedule, not just locations. */}
+                      {(item.startAt || item.serviceDate) && (
                         <span className="flex items-center gap-1.5 text-slate-500">
                           <Calendar className="w-3 h-3 text-brand-primary" />
-                          Service: {item.serviceDate}
+                          Pickup date: {item.startAt ? new Date(item.startAt).toLocaleDateString() : item.serviceDate}
                         </span>
+                      )}
+                      {item.startAt && (
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <Clock className="w-3 h-3 text-brand-primary" />
+                          Pickup time: {new Date(item.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                      {item.endAt && (
+                        <>
+                          <span className="flex items-center gap-1.5 text-slate-500">
+                            <Calendar className="w-3 h-3 text-brand-primary" />
+                            Drop-off date: {new Date(item.endAt).toLocaleDateString()}
+                          </span>
+                          <span className="flex items-center gap-1.5 text-slate-500">
+                            <Clock className="w-3 h-3 text-brand-primary" />
+                            Drop-off time: {new Date(item.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </>
                       )}
                       {item.tripType && (
                         <span className="flex items-center gap-1.5 text-slate-500">
                           <Tag className="w-3 h-3 text-brand-primary" />
                           {String(item.tripType).replace(/_/g, ' ')}
+                        </span>
+                      )}
+                      {Array.isArray((item as any).stops) && (item as any).stops.length > 0 && (
+                        <span className="flex items-start gap-1.5 text-slate-500 col-span-full">
+                          <MapPin className="w-3 h-3 text-brand-primary mt-0.5 shrink-0" />
+                          <span><span className="font-semibold">Stops:</span> {((item as any).stops as string[]).filter(Boolean).join(' → ')}</span>
                         </span>
                       )}
                       {item.notes && (

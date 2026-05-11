@@ -41,6 +41,12 @@ export interface BookingItem {
   notes: string | null;
   stops: string[];
   extras: { id: string; label: string; quantity: number; unitPriceCents: number; totalCents: number }[];
+  // CAR_RENTAL / CAR_TRANSFER enrichment from the backend BookingItemResponse.
+  carName?: string | null;
+  carRegistrationNo?: string | null;
+  carCategory?: string | null;
+  distanceKm?: number | null;
+  routeTitle?: string | null;
 }
 
 export interface Booking {
