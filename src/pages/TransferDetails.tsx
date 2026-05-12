@@ -126,10 +126,10 @@ export default function TransferDetails() {
           <div className="bg-red-50 rounded-xl p-5">
             <h2 className="text-sm font-semibold text-red-800 mb-3">Cancellation Policy</h2>
             <ul className="space-y-1 text-xs text-red-700">
-              <li>Free cancellation if cancelled more than 24 hours before pickup</li>
-              <li>50% fee if cancelled 12–24 hours before</li>
-              <li>75% fee if cancelled 3–12 hours before</li>
-              <li>No refund if cancelled less than 2 hours before</li>
+              <li>Free cancellation up to 48 hours before pickup.</li>
+              <li>50% fee if cancelled within 48–24 hours.</li>
+              <li>75% fee if cancelled within 24–12 hours.</li>
+              <li>No refund within 12 hours of pickup.</li>
             </ul>
           </div>
         </div>

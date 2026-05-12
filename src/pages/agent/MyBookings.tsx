@@ -461,12 +461,25 @@ export default function MyBookings() {
   }, [loadBookings]);
 
   const handleCancel = async (id: string) => {
-    if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) return;
+    // Surface the cancellation policy in the confirmation so the agent sees
+    // the fee tier before they commit. Refund is processed manually by ops.
+    const b = bookings.find(x => x.id === id);
+    const hoursOut = b?.serviceDate
+      ? Math.round((new Date(b.serviceDate + 'T00:00').getTime() - Date.now()) / 36e5)
+      : null;
+    let tier = 'See cancellation policy for fee.';
+    if (hoursOut != null) {
+      if (hoursOut > 48) tier = `Free cancellation (${hoursOut}h before service).`;
+      else if (hoursOut > 24) tier = `50% fee (${hoursOut}h before service).`;
+      else if (hoursOut > 12) tier = `75% fee (${hoursOut}h before service).`;
+      else tier = `No refund (${hoursOut}h before service).`;
+    }
+    if (!confirm(`Cancel this booking?\n\n${tier}\n\nThis cannot be undone. Refund will be handled manually by our team.`)) return;
     const reason = prompt('Reason for cancellation (optional):') ?? '';
     try {
       const updated = await cancelBooking(id, reason);
       setBookings(prev => prev.map(b => b.id === id ? updated : b));
-      alert('Booking cancelled successfully.');
+      alert('Booking cancelled. Our team will process any applicable refund manually.');
     } catch (e: any) {
       // AM_030: surface a friendly message for the common backend errors.
       const code = e?.response?.data?.error?.code ?? e?.response?.data?.code;

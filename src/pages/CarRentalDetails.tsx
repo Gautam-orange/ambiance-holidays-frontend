@@ -673,7 +673,7 @@ export default function CarRentalDetails() {
               )}
 
               <p className="text-[10px] text-center text-slate-400 uppercase font-bold tracking-widest">
-                Free cancellation up to 24 hours before pickup
+                Free cancellation up to 48 hours before pickup
               </p>
             </div>
           </div>

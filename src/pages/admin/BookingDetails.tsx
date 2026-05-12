@@ -38,7 +38,8 @@ function CancelModal({
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Cancelled by</label>
           <div className="flex gap-4">
-            {['ADMIN', 'CUSTOMER'].map(t => (
+            {/* Agent-only platform: bookings come from agents, not direct customers. */}
+            {['ADMIN', 'AGENT'].map(t => (
               <label key={t} className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
                 <input type="radio" name="byType" value={t} checked={byType === t}
                   onChange={() => setByType(t)} className="accent-brand-primary" />
@@ -343,12 +344,12 @@ export default function BookingDetails() {
                 {booking.invoiceNumber && (
                   <span className="text-slate-400">Invoice <strong className="text-slate-700 font-mono">{booking.invoiceNumber}</strong></span>
                 )}
+                {/* Agent-only platform — every booking is by an agent. We
+                    keep the badge for visual continuity but no longer show
+                    a separate "customer" colour because that path is gone. */}
                 {booking.bookedByType && (
-                  <span className={cn(
-                    'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
-                    booking.bookedByType === 'AGENT' ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'
-                  )}>
-                    Booked by {booking.bookedByType.toLowerCase()}
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-700">
+                    Booked by agent
                   </span>
                 )}
                 {booking.createdByName && (
